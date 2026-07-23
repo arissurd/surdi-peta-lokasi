@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect x="10" y="10" width="380" height="280" fill="#f9fafb" stroke="#000" />
+  <text x="200" y="40" text-anchor="middle" font-size="20" font-weight="bold">Denah Gedung E3 (Test)</text>
+  <rect id="r1" x="20" y="60" width="80" height="40" fill="#a8d5e5" stroke="#333" />
+  <text x="60" y="85" text-anchor="middle">R1</text>
+  <rect id="r2" x="110" y="60" width="80" height="40" fill="#a8d5e5" stroke="#333" />
+  <text x="150" y="85" text-anchor="middle">R2</text>
+  <rect id="r3" x="200" y="60" width="80" height="40" fill="#a8d5e5" stroke="#333" />
+  <text x="240" y="85" text-anchor="middle">R3</text>
+  <rect id="r4" x="290" y="60" width="80" height="40" fill="#a8d5e5" stroke="#333" />
+  <text x="330" y="85" text-anchor="middle">R4</text>
+  <rect id="r5" x="20" y="120" width="80" height="40" fill="#a8d5e5" stroke="#333" />
+  <text x="60" y="145" text-anchor="middle">R5</text>
+  <rect id="r6" x="110" y="120" width="80" height="40" fill="#a8d5e5" stroke="#333" />
+  <text x="150" y="145" text-anchor="middle">R6</text>
+</svg>

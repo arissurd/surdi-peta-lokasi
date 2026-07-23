@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -13,9 +12,21 @@ import {
 } from "@/components/ui/select";
 import { Loader2, MapPin, AlertCircle, FileImage } from "lucide-react";
 
-// ─── Available floor plans (must match files in /public/denah/) ─────────────
-export const AVAILABLE_BUILDINGS = [
+// ─── Static default floor plans (shipped in /public/denah/) ─────────────────
+// Runtime will merge in any user-uploaded SVGs (via /api/denah/list) on top
+// of this list, so newly-uploaded buildings become immediately available.
+export const DEFAULT_BUILDINGS = [
   "E5", "F2", "F5", "F6",
+  "G2", "G3", "G4", "G5", "G6", "G7", "G8",
+] as const;
+
+// Backward-compat alias (some imports still reference AVAILABLE_BUILDINGS)
+export const AVAILABLE_BUILDINGS = DEFAULT_BUILDINGS;
+
+// ─── All known buildings from the DB (used by the upload-denah picker) ───
+export const ALL_BUILDINGS = [
+  "E3", "E4", "E5", "E6", "E7",
+  "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9",
   "G2", "G3", "G4", "G5", "G6", "G7", "G8",
 ] as const;
 
@@ -29,14 +40,12 @@ export type ParsedLokasi = {
 export function parseLokasi(raw: string | null | undefined): ParsedLokasi | null {
   if (!raw) return null;
   const s = String(raw).trim().toUpperCase().replace(/\s+/g, "");
-  // Match: <BuildingLetters><Digits>.<RackPrefix?><Digits>[.anything...]
-  // Examples: G2.R1, G5.R201, F4.R8.SAF9, G2.RK12, F5.RB3
   const m = s.match(/^([A-Z])(\d+)[.\-]([A-Z]+)?(\d+)(.*)$/);
   if (!m) return null;
-  const building = `${m[1]}${m[2]}`;           // "G2"
-  const rackPrefix = m[3] || "R";               // "R" | "RK" | "RB" | "RA" | "RY"
-  const rackNum = m[4];                          // "1"
-  const rest = m[5] || "";                       // ".SAF9" | ""
+  const building = `${m[1]}${m[2]}`;
+  const rackPrefix = m[3] || "R";
+  const rackNum = m[4];
+  const rest = m[5] || "";
   return {
     building,
     rackCode: `${rackPrefix}${rackNum}`,
@@ -44,10 +53,50 @@ export function parseLokasi(raw: string | null | undefined): ParsedLokasi | null
   };
 }
 
-// Check if a building has a floor plan SVG
+// ─── Module-level cache of available buildings (shared across instances) ──
+// Populated from /api/denah/list on first DenahView mount. Other components
+// (like ExplorePanel's badges) can read this synchronously via getAvailableBuildings().
+let availableBuildingsCache: string[] = [...DEFAULT_BUILDINGS];
+const availableBuildingsListeners = new Set<() => void>();
+
+export function getAvailableBuildings(): string[] {
+  return availableBuildingsCache;
+}
+
+export function subscribeAvailableBuildings(cb: () => void): () => void {
+  availableBuildingsListeners.add(cb);
+  return () => availableBuildingsListeners.delete(cb);
+}
+
+function setAvailableBuildings(next: string[]) {
+  const sorted = Array.from(new Set([...DEFAULT_BUILDINGS, ...next])).sort();
+  // Only fire if changed
+  if (
+    sorted.length !== availableBuildingsCache.length ||
+    sorted.some((b, i) => b !== availableBuildingsCache[i])
+  ) {
+    availableBuildingsCache = sorted;
+    availableBuildingsListeners.forEach((cb) => cb());
+  }
+}
+
+/** Refresh the available-buildings cache from the server. */
+export async function refreshAvailableBuildings(): Promise<string[]> {
+  try {
+    const res = await fetch("/api/denah/list");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    setAvailableBuildings(json.buildings || []);
+    return availableBuildingsCache;
+  } catch {
+    return availableBuildingsCache;
+  }
+}
+
+// Check if a building has a floor plan SVG (uses the live cache)
 export function hasDenah(building: string | null | undefined): boolean {
   if (!building) return false;
-  return (AVAILABLE_BUILDINGS as readonly string[]).includes(building.toUpperCase());
+  return availableBuildingsCache.includes(building.toUpperCase());
 }
 
 // Convert rack code "R1" / "RK12" to SVG element ID "r1" / "rk12"
@@ -69,18 +118,29 @@ type Props = {
 export default function DenahView({ lokasi, initialBuilding, onRackClick }: Props) {
   const parsed = useMemo(() => parseLokasi(lokasi), [lokasi]);
 
-  // Determine which building to show:
-  // - If parsed location matches an available building, use it
-  // - Otherwise use initialBuilding or first available
+  // Subscribe to the available-buildings cache so the dropdown & hasDenah
+  // checks update live when an admin uploads a new SVG.
+  const [, forceUpdate] = useState(0);
+  useEffect(() => {
+    return subscribeAvailableBuildings(() => forceUpdate((n) => n + 1));
+  }, []);
+
+  // Refresh cache on mount
+  useEffect(() => {
+    refreshAvailableBuildings();
+  }, []);
+
+  const availableList = getAvailableBuildings();
+
   const defaultBuilding = useMemo(() => {
     if (parsed && hasDenah(parsed.building)) return parsed.building;
     if (initialBuilding && hasDenah(initialBuilding)) return initialBuilding.toUpperCase();
-    return AVAILABLE_BUILDINGS[0];
-  }, [parsed, initialBuilding]);
+    return availableList[0] || "G2";
+  }, [parsed, initialBuilding, availableList]);
 
   const [activeBuilding, setActiveBuilding] = useState<string>(defaultBuilding);
 
-  // Sync activeBuilding when lokasi changes (e.g. user clicks different list row)
+  // Sync activeBuilding when lokasi changes
   useEffect(() => {
     if (parsed && hasDenah(parsed.building) && parsed.building !== activeBuilding) {
       setActiveBuilding(parsed.building);
@@ -92,7 +152,6 @@ export default function DenahView({ lokasi, initialBuilding, onRackClick }: Prop
   const [error, setError] = useState<string | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  // Highlight set: rack IDs to highlight (usually just the parsed one)
   const highlightIds = useMemo(() => {
     if (!parsed || parsed.building !== activeBuilding) return [];
     const svgId = rackCodeToSvgId(parsed.rackCode);
@@ -103,7 +162,7 @@ export default function DenahView({ lokasi, initialBuilding, onRackClick }: Prop
   const loadSvg = useCallback(async (building: string) => {
     if (!hasDenah(building)) {
       setSvgText("");
-      setError(`Denah untuk gedung ${building} tidak tersedia.`);
+      setError(`Denah untuk gedung ${building} belum tersedia. Admin dapat mengunggah SVG via tombol "Upload denah".`);
       return;
     }
     setLoading(true);
@@ -126,7 +185,9 @@ export default function DenahView({ lokasi, initialBuilding, onRackClick }: Prop
     loadSvg(activeBuilding);
   }, [activeBuilding, loadSvg]);
 
-  // Apply highlights + scroll-to-rack after SVG renders
+  // Apply highlights + scroll-to-rack after SVG renders.
+  // Also tags all rack elements with .denah-rack (for hover) — re-applied every
+  // time svgText or highlightIds change so a newly-rendered SVG always has hover.
   useEffect(() => {
     if (!svgText || !wrapRef.current) return;
     const wrap = wrapRef.current;
@@ -140,32 +201,44 @@ export default function DenahView({ lokasi, initialBuilding, onRackClick }: Prop
     svg.style.display = "block";
     svg.style.margin = "0 auto";
 
-    // Inject highlight CSS if not already present
+    // Inject highlight CSS once
     const styleId = "denah-highlight-style";
-    if (!wrap.querySelector(`#${styleId}`)) {
+    if (!document.getElementById(styleId)) {
       const styleEl = document.createElement("style");
       styleEl.id = styleId;
+      // Note: hover rule comes BEFORE the highlight rule so highlight wins
+      // by specificity (later rule), but we also add an explicit
+      // .denah-rack.denah-highlight:hover override so the highlighted rack
+      // can still show a distinct hover state when re-hovered.
       styleEl.textContent = `
         .denah-rack {
           cursor: pointer;
-          transition: fill 0.2s ease, stroke 0.2s ease;
+          transition: fill 0.15s ease, stroke 0.15s ease, filter 0.15s ease;
         }
         .denah-rack:hover {
           fill: #fde68a !important;
           stroke: #d97706 !important;
           stroke-width: 2 !important;
+          filter: none !important;
         }
-        .denah-highlight {
+        .denah-rack.denah-highlight {
           fill: #dc2626 !important;
           stroke: #7f1d1d !important;
           stroke-width: 3 !important;
           filter: drop-shadow(0 0 8px rgba(220, 38, 38, 0.6));
         }
+        .denah-rack.denah-highlight:hover {
+          fill: #f97316 !important;
+          stroke: #9a3412 !important;
+          stroke-width: 3 !important;
+          filter: drop-shadow(0 0 10px rgba(249, 115, 22, 0.7));
+        }
       `;
-      wrap.appendChild(styleEl);
+      document.head.appendChild(styleEl);
     }
 
-    // Mark all elements with rack-pattern IDs as clickable
+    // (Re)tag all rack elements. We add the class every time because React
+    // re-renders the SVG innerHTML on every loadSvg call, wiping classes.
     const allRackEls = svg.querySelectorAll("[id]");
     allRackEls.forEach((el) => {
       const id = el.getAttribute("id") || "";
@@ -191,7 +264,6 @@ export default function DenahView({ lokasi, initialBuilding, onRackClick }: Prop
       }
     }
 
-    // Smooth-scroll the highlighted rack into view inside the scroll area
     if (scrollTarget) {
       setTimeout(() => {
         (scrollTarget as Element).scrollIntoView({
@@ -203,13 +275,11 @@ export default function DenahView({ lokasi, initialBuilding, onRackClick }: Prop
     }
   }, [svgText, highlightIds]);
 
-  // Click delegation on SVG (attached to document with capture to bypass
-  // any re-render churn on wrapRef.current)
+  // Click delegation on SVG (capture phase to survive re-renders)
   useEffect(() => {
     const handler = (event: MouseEvent) => {
       const target = event.target as Element | null;
       if (!target) return;
-      // Walk up to find an element with an id matching the rack pattern
       let el: Element | null = target;
       let attempts = 0;
       while (el && attempts < 10) {
@@ -246,7 +316,7 @@ export default function DenahView({ lokasi, initialBuilding, onRackClick }: Prop
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {AVAILABLE_BUILDINGS.map((b) => (
+              {availableList.map((b) => (
                 <SelectItem key={b} value={b}>
                   Gedung {b}
                 </SelectItem>
@@ -272,7 +342,7 @@ export default function DenahView({ lokasi, initialBuilding, onRackClick }: Prop
               <AlertCircle className="size-8" />
               <p className="text-sm">{error}</p>
               <p className="text-xs text-muted-foreground">
-                Denah tersedia untuk gedung: {AVAILABLE_BUILDINGS.join(", ")}
+                Denah tersedia untuk: {availableList.join(", ")}
               </p>
             </div>
           </div>
@@ -301,6 +371,10 @@ export default function DenahView({ lokasi, initialBuilding, onRackClick }: Prop
         <span className="flex items-center gap-1">
           <span className="inline-block w-3 h-3 rounded bg-[#dc2626] border border-red-900" />
           Terpilih
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-3 h-3 rounded bg-[#f97316] border border-orange-700" />
+          Hover rak terpilih
         </span>
         {parsed && parsed.building !== activeBuilding && (
           <span className="text-amber-700 ml-auto flex items-center gap-1">

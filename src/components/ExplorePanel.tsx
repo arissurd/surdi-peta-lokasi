@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,49 +13,43 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   Loader2,
-  MapPin,
   Search,
   SlidersHorizontal,
   X,
   FileImage,
-  Map as MapIcon,
+  Upload,
 } from "lucide-react";
-import { api, type Location, type MapMarker } from "@/lib/api";
-import DenahView, { parseLokasi, hasDenah, AVAILABLE_BUILDINGS } from "./DenahView";
-
-// Leaflet needs `window`, so load MapView only on the client
-const MapView = dynamic(() => import("./MapView"), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-full min-h-[400px] rounded-xl bg-muted/40 flex items-center justify-center text-muted-foreground">
-      Memuat peta…
-    </div>
-  ),
-});
+import { api, type Location } from "@/lib/api";
+import DenahView, {
+  parseLokasi,
+  hasDenah,
+  AVAILABLE_BUILDINGS,
+  ALL_BUILDINGS,
+} from "./DenahView";
+import UploadDenahDialog from "./UploadDenahDialog";
 
 type Props = {
   onChanged?: () => void;
 };
 
-type ViewMode = "map" | "denah";
-
 export default function ExplorePanel({ onChanged }: Props) {
-  const [markers, setMarkers] = useState<MapMarker[]>([]);
-  const [loadingMap, setLoadingMap] = useState(true);
   const [list, setList] = useState<Location[]>([]);
   const [loadingList, setLoadingList] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<Location | null>(null);
-  const [view, setView] = useState<ViewMode>("map");
 
   // Rack-click popup (archives at same location code)
   const [rackPopupCode, setRackPopupCode] = useState<string | null>(null);
   const [rackPopupData, setRackPopupData] = useState<Location[] | null>(null);
   const [rackPopupLoading, setRackPopupLoading] = useState(false);
+
+  // Upload-denah dialog
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   // Filters
   const [q, setQ] = useState("");
@@ -75,30 +68,15 @@ export default function ExplorePanel({ onChanged }: Props) {
     [q, jenis, prov, periode]
   );
 
-  // Track the parsed lokasi of the currently-selected item
   const selectedParsed = useMemo(
     () => parseLokasi(selectedDetail?.lokasi),
     [selectedDetail]
   );
 
-  // Decide whether denah is available for the current selection
   const denahAvailable = useMemo(
     () => !!selectedParsed && hasDenah(selectedParsed.building),
     [selectedParsed]
   );
-
-  // Load map markers
-  const loadMarkers = useCallback(async () => {
-    setLoadingMap(true);
-    try {
-      const res = await api.mapMarkers(filterParams);
-      setMarkers(res.markers);
-    } catch (e: any) {
-      toast.error(e?.message || "Gagal memuat marker peta");
-    } finally {
-      setLoadingMap(false);
-    }
-  }, [filterParams]);
 
   const loadList = useCallback(async () => {
     setLoadingList(true);
@@ -115,13 +93,12 @@ export default function ExplorePanel({ onChanged }: Props) {
   // Debounced reload on filter change
   useEffect(() => {
     const t = setTimeout(() => {
-      loadMarkers();
       loadList();
     }, 350);
     return () => clearTimeout(t);
-  }, [loadMarkers, loadList]);
+  }, [loadList]);
 
-  // Load full detail when a marker/list row is selected
+  // Load full detail when a row is selected
   useEffect(() => {
     if (!selectedId) {
       setSelectedDetail(null);
@@ -140,18 +117,6 @@ export default function ExplorePanel({ onChanged }: Props) {
       cancelled = true;
     };
   }, [selectedId]);
-
-  // Auto-switch view: when a new location is selected, prefer denah if available
-  useEffect(() => {
-    if (!selectedDetail) return;
-    const p = parseLokasi(selectedDetail.lokasi);
-    if (p && hasDenah(p.building)) {
-      setView("denah");
-    } else if (selectedDetail.latitude != null && selectedDetail.longitude != null) {
-      setView("map");
-    }
-    // If neither denah nor coords: stay on current view (will show empty state)
-  }, [selectedDetail]);
 
   // Load rack popup data when code changes
   useEffect(() => {
@@ -176,29 +141,20 @@ export default function ExplorePanel({ onChanged }: Props) {
     };
   }, [rackPopupCode]);
 
-  // When user clicks a rack inside the denah SVG
   const handleRackClick = useCallback((code: string) => {
     setRackPopupCode(code);
   }, []);
 
-  // When user clicks a row in the sidebar list
   const handleListClick = useCallback((row: Location) => {
     setSelectedId(row.id);
-    const p = parseLokasi(row.lokasi);
-    if (p && hasDenah(p.building)) {
-      setView("denah");
-    } else if (row.latitude != null && row.longitude != null) {
-      setView("map");
-    } else if (p) {
-      // Building+rack parsed but no SVG → try denah anyway, will show error
-      // Better: stay on map and notify
-      toast.info(`Lokasi ${p.building}.${p.rackCode} — denah gedung ${p.building} belum tersedia`);
-    } else {
-      toast.info("Lokasi ini belum memiliki koordinat atau kode rak yang valid");
-    }
   }, []);
 
-  const totalMarkers = markers.length;
+  // Total buildings with/without denah for the summary line
+  const denahStats = useMemo(() => {
+    const withSvg = AVAILABLE_BUILDINGS.length;
+    const total = ALL_BUILDINGS.length;
+    return { withSvg, withoutSvg: total - withSvg, total };
+  }, []);
 
   return (
     <div className="grid gap-4 lg:grid-cols-[380px_1fr] xl:grid-cols-[420px_1fr]">
@@ -279,11 +235,18 @@ export default function ExplorePanel({ onChanged }: Props) {
             )}
             <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1 flex-wrap">
               <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
-                <MapPin className="size-3 mr-1" /> {totalMarkers} marker
+                <FileImage className="size-3 mr-1" /> {denahStats.withSvg}/{denahStats.total} gedung berdenah
               </Badge>
-              <Badge variant="outline" className="text-[10px]">
-                <FileImage className="size-3 mr-1" /> {AVAILABLE_BUILDINGS.length} denah
-              </Badge>
+              {denahStats.withoutSvg > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 text-[11px] gap-1"
+                  onClick={() => setUploadOpen(true)}
+                >
+                  <Upload className="size-3" /> Upload denah
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -307,7 +270,6 @@ export default function ExplorePanel({ onChanged }: Props) {
                   list.map((r) => {
                     const isSelected = r.id === selectedId;
                     const parsed = parseLokasi(r.lokasi);
-                    const hasCoord = r.latitude != null && r.longitude != null;
                     const hasSvg = parsed && hasDenah(parsed.building);
                     return (
                       <button
@@ -324,18 +286,17 @@ export default function ExplorePanel({ onChanged }: Props) {
                             {r.lokasi || "(tanpa kode)"}
                           </div>
                           <div className="flex flex-wrap gap-1 justify-end">
-                            {hasSvg && (
+                            {hasSvg ? (
                               <Badge variant="outline" className="text-emerald-700 border-emerald-300 text-[10px]">
                                 <FileImage className="size-2.5 mr-0.5" /> denah
                               </Badge>
-                            )}
-                            {hasCoord ? (
-                              <Badge variant="outline" className="text-emerald-700 border-emerald-300 text-[10px]">
-                                <MapPin className="size-2.5 mr-0.5" /> peta
+                            ) : parsed ? (
+                              <Badge variant="outline" className="text-amber-700 border-amber-300 text-[10px]">
+                                no svg
                               </Badge>
                             ) : (
-                              <Badge variant="outline" className="text-amber-700 border-amber-300 text-[10px]">
-                                no coord
+                              <Badge variant="outline" className="text-muted-foreground text-[10px]">
+                                no code
                               </Badge>
                             )}
                           </div>
@@ -358,75 +319,26 @@ export default function ExplorePanel({ onChanged }: Props) {
         </Card>
       </div>
 
-      {/* ─── Main view: Peta / Denah toggle + detail ─── */}
+      {/* ─── Main view: Denah Rak only ─── */}
       <div className="space-y-3">
         <Card className="overflow-hidden">
-          {/* View toggle header */}
           <div className="flex items-center justify-between gap-2 p-2 border-b bg-muted/30">
-            <div className="flex items-center gap-1">
-              <Button
-                size="sm"
-                variant={view === "map" ? "default" : "ghost"}
-                onClick={() => setView("map")}
-                className={
-                  view === "map"
-                    ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                    : ""
-                }
-              >
-                <MapIcon className="size-4" /> Peta
-              </Button>
-              <Button
-                size="sm"
-                variant={view === "denah" ? "default" : "ghost"}
-                onClick={() => setView("denah")}
-                disabled={!denahAvailable && !selectedParsed}
-                className={
-                  view === "denah"
-                    ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-                    : ""
-                }
-                title={
-                  !denahAvailable && selectedParsed
-                    ? `Denah gedung ${selectedParsed.building} belum tersedia`
-                    : "Tampilkan denah rak"
-                }
-              >
-                <FileImage className="size-4" /> Denah Rak
-              </Button>
+            <div className="flex items-center gap-2 px-2">
+              <FileImage className="size-4 text-emerald-600" />
+              <span className="text-sm font-medium">Denah Rak</span>
             </div>
             <div className="text-xs text-muted-foreground pr-2">
-              {view === "map"
-                ? `${totalMarkers} marker ditampilkan`
-                : selectedParsed
+              {selectedParsed
                 ? `Lokasi: ${selectedParsed.building}.${selectedParsed.rackCode}`
                 : "Pilih lokasi untuk highlight rak"}
             </div>
           </div>
 
           <CardContent className="p-0 h-[55vh] lg:h-[calc(100vh-15rem)] min-h-[400px] relative">
-            {view === "map" ? (
-              <>
-                {loadingMap && (
-                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 backdrop-blur-sm">
-                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                      <Loader2 className="size-6 animate-spin" />
-                      <span className="text-sm">Memuat marker…</span>
-                    </div>
-                  </div>
-                )}
-                <MapView
-                  markers={markers}
-                  selectedId={selectedId}
-                  onSelect={(m) => setSelectedId(m.id)}
-                />
-              </>
-            ) : (
-              <DenahView
-                lokasi={selectedDetail?.lokasi}
-                onRackClick={handleRackClick}
-              />
-            )}
+            <DenahView
+              lokasi={selectedDetail?.lokasi}
+              onRackClick={handleRackClick}
+            />
           </CardContent>
         </Card>
 
@@ -437,7 +349,7 @@ export default function ExplorePanel({ onChanged }: Props) {
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <CardTitle className="text-base flex items-center gap-2">
-                    <MapPin className="size-4 text-emerald-600" />
+                    <FileImage className="size-4 text-emerald-600" />
                     {selectedDetail.lokasi || "(tanpa kode lokasi)"}
                   </CardTitle>
                   <p className="mt-1 text-sm text-muted-foreground line-clamp-1">
@@ -492,6 +404,9 @@ export default function ExplorePanel({ onChanged }: Props) {
               <FileImage className="size-5 text-emerald-600" />
               Arsip di Rak <span className="font-mono">{rackPopupCode}</span>
             </DialogTitle>
+            <DialogDescription>
+              Klik arsip untuk melihat detail lengkap.
+            </DialogDescription>
           </DialogHeader>
           <ScrollArea className="max-h-[60vh]">
             <div className="space-y-2 pr-2">
@@ -502,7 +417,7 @@ export default function ExplorePanel({ onChanged }: Props) {
               ) : rackPopupData && rackPopupData.length > 0 ? (
                 <>
                   <p className="text-sm text-muted-foreground">
-                    Ditemukan <b>{rackPopupData.length}</b> arsip di rak ini. Klik untuk lihat detail.
+                    Ditemukan <b>{rackPopupData.length}</b> arsip di rak ini.
                   </p>
                   {rackPopupData.map((r) => (
                     <button
@@ -514,18 +429,16 @@ export default function ExplorePanel({ onChanged }: Props) {
                       className="w-full text-left rounded-lg border p-3 hover:border-emerald-300 hover:bg-muted/40 transition-colors"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-mono font-semibold text-sm">
-                          {r.lokasi || "(tanpa kode)"}
+                        <span className="text-sm font-medium line-clamp-1">
+                          {r.jalanMasuk || "—"}
                         </span>
-                        <Badge variant="outline" className="text-[10px]">
+                        <Badge variant="outline" className="text-[10px] shrink-0">
                           {r.jenis || "—"}
                         </Badge>
                       </div>
-                      <div className="mt-1 text-xs text-muted-foreground line-clamp-1">
-                        {r.jalanMasuk || "—"}
-                      </div>
                       <div className="mt-1 text-[11px] text-muted-foreground">
-                        {r.provenance || "—"} · {r.periode || "—"}
+                        {r.provenance || "—"}
+                        {r.periode ? ` · ${r.periode}` : ""}
                         {r.nomorJumlah ? ` · ${r.nomorJumlah}` : ""}
                       </div>
                     </button>
@@ -542,6 +455,19 @@ export default function ExplorePanel({ onChanged }: Props) {
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      {/* Upload-denah dialog */}
+      <UploadDenahDialog
+        open={uploadOpen}
+        onOpenChange={setUploadOpen}
+        onUploaded={() => {
+          setUploadOpen(false);
+          // Force a refresh by reloading the list
+          loadList();
+          // Notify parent (refreshes stats if admin)
+          onChanged?.();
+        }}
+      />
     </div>
   );
 }

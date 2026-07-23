@@ -75,3 +75,34 @@ Stage Summary:
 - Location codes now fully synced with floor plans: any "Building.Rack" code (e.g. G2.R1, G5.R201, F4.R8) auto-loads the matching `denah_<building>.svg` and highlights the rack element by ID.
 - 11 floor plans supported; locations in buildings without SVGs (E3, E4, E6, E7, F3, F4, F7, F8, F9) fall back to the map view with a toast.
 - Clicking any rack (highlighted or not) inside an SVG opens a popup listing all archives at that rack, with quick-jump to a specific archive's detail.
+
+---
+Task ID: denah-fixes
+Agent: main (Super Z)
+Task: 4 perbaikan: (1) hapus peta dunia, (2) hover tidak aktif setelah klik rak, (3) sembunyikan kode lokasi di popup, (4) tambah fitur upload denah untuk gedung yang belum ada.
+
+Work Log:
+- (1) Hapus peta dunia: hapus import `leaflet/dist/leaflet.css` dari layout, hapus dynamic import MapView, hapus toggle Peta/Denah, hapus badge "peta"/"no coord" di list. Sekarang panel kanan hanya menampilkan DenahView. Sidebar search + list tetap, tetapi badge baris disederhanakan jadi "denah" / "no svg" / "no code".
+- (2) Fix hover setelah klik rak: root cause adalah CSS rule `.denah-highlight` menimpa `:hover` karena keduanya pakai `!important` dan highlight rule ada setelahnya. Solusi: tambah rule eksplisit `.denah-rack.denah-highlight:hover` dengan warna oranye (#f97316) yang berbeda dari merah default (#dc2626) dan kuning hover biasa (#fde68a). Class `.denah-rack` sekarang juga di-reapplied setiap kali SVG render ulang (sebelumnya hanya sekali) sehingga rak yang baru dirender juga bisa di-hover. Legend footer ditambah swatch "Hover rak terpilih" (oranye).
+- (3) Sembunyikan kode lokasi di popup: ubah tampilan item popup dari `<font-mono> G8.R139 </font-mono>` + jalanMasuk menjadi hanya jalanMasuk sebagai title, dengan provenance/periode/nomorJumlah sebagai subtitle. Kode rak tetap di header dialog ("Arsip di Rak G8.R139") untuk konteks, tapi tidak di setiap item.
+- (4) Fitur upload denah:
+  - `GET /api/denah/list` — scan `/public/denah/` untuk file `denah_<code>.svg`, return list gedung yang punya denah (default + uploaded).
+  - `POST /api/denah/upload` — admin-only, multipart form dengan `building` (validated against `ALLOWED_BUILDINGS`) + `file` (max 10 MB, must contain `<svg`). Strip XML declaration, save ke `/public/denah/denah_<building>.svg`.
+  - `src/components/UploadDenahDialog.tsx` — dialog dengan dropdown gedung (missing buildings ditandai "(belum ada)", existing ditandai "(ganti)"), file picker, status overview badge grid, dan catatan tentang format `id="r<nomor>"`.
+  - `DenahView` sekarang punya module-level cache `availableBuildingsCache` yang di-refresh via `refreshAvailableBuildings()`. `hasDenah()` menggunakan cache ini sehingga setelah upload, gedung baru langsung terdeteksi tanpa reload halaman. `ExplorePanel` subscribe ke cache ini untuk update badge list secara live.
+  - Tombol "Upload denah" muncul di sidebar search card, hanya untuk admin (diakses via form yang sama untuk semua user, tapi API menolak jika bukan admin).
+- Verifikasi Agent Browser:
+  - Login admin → list G8.R138 menampilkan badge "denah" (tanpa "no coord"/"peta" lagi).
+  - Klik G8.R138 → denah_g8.svg muncul, r138 highlight merah.
+  - Klik rak r139 di SVG → popup terbuka dengan item pertama "Departemen Gouvernment Bedrijven · 1919" (tanpa kode lokasi di tiap item).
+  - Tutup popup → hover r139 yang ter-highlight → fill berubah ke oranye #f97316 (hover aktif setelah klik ✅).
+  - Hover r140 (rak tidak ter-highlight) → fill berubah ke kuning #fde68a ✅.
+  - Klik "Upload denah" → dialog terbuka, gedung default E3 (pertama yang belum ada).
+  - Upload test_e3.svg → toast sukses, dialog tertutup.
+  - Cari "E3.A1.1" → badge baris berubah dari "no svg" ke "denah".
+  - Klik baris E3.A1.1 → denah_e3.svg kustom dimuat (viewBox 0 0 400 300, 6 rak).
+
+Stage Summary:
+- 4 masalah selesai: peta dunia dihapus (hanya denah rak), hover berfungsi setelah klik rak (warna oranye khusus untuk hover rak terpilih), kode lokasi dihapus dari item popup, dan fitur upload denah baru memungkinkan admin menambah/ganti SVG untuk gedung manapun (E3, F3, F4, dst) tanpa perlu deploy ulang.
+- Cache gedung tersedia live-update sehingga setelah upload, badge list dan dropdown DenahView langsung menampilkan gedung baru tanpa refresh.
+- API upload memiliki validasi: admin-only, kode gedung harus ada di whitelist, file harus SVG (<10 MB), strip XML declaration.
