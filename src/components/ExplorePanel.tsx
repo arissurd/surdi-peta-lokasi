@@ -23,6 +23,7 @@ import {
   X,
   FileImage,
   Upload,
+  Database,
 } from "lucide-react";
 import { api, type Location } from "@/lib/api";
 import DenahView, {
@@ -30,6 +31,7 @@ import DenahView, {
   hasDenah,
   AVAILABLE_BUILDINGS,
   ALL_BUILDINGS,
+  refreshAvailableBuildings,
 } from "./DenahView";
 import UploadDenahDialog from "./UploadDenahDialog";
 
@@ -56,6 +58,7 @@ export default function ExplorePanel({ onChanged }: Props) {
   const [jenis, setJenis] = useState("");
   const [prov, setProv] = useState("");
   const [periode, setPeriode] = useState("");
+  const [building, setBuilding] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
   const filterParams = useMemo(
@@ -64,18 +67,14 @@ export default function ExplorePanel({ onChanged }: Props) {
       jenis: jenis.trim() || undefined,
       prov: prov.trim() || undefined,
       periode: periode.trim() || undefined,
+      building: building.trim().toUpperCase() || undefined,
     }),
-    [q, jenis, prov, periode]
+    [q, jenis, prov, periode, building]
   );
 
   const selectedParsed = useMemo(
     () => parseLokasi(selectedDetail?.lokasi),
     [selectedDetail]
-  );
-
-  const denahAvailable = useMemo(
-    () => !!selectedParsed && hasDenah(selectedParsed.building),
-    [selectedParsed]
   );
 
   const loadList = useCallback(async () => {
@@ -149,11 +148,10 @@ export default function ExplorePanel({ onChanged }: Props) {
     setSelectedId(row.id);
   }, []);
 
-  // Total buildings with/without denah for the summary line
-  const denahStats = useMemo(() => {
-    const withSvg = AVAILABLE_BUILDINGS.length;
-    const total = ALL_BUILDINGS.length;
-    return { withSvg, withoutSvg: total - withSvg, total };
+  // Available buildings for the badge counter
+  const [liveBuildings, setLiveBuildings] = useState<string[]>([...AVAILABLE_BUILDINGS]);
+  useEffect(() => {
+    refreshAvailableBuildings().then(setLiveBuildings);
   }, []);
 
   return (
@@ -163,7 +161,7 @@ export default function ExplorePanel({ onChanged }: Props) {
         <Card className="shrink-0">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <Search className="size-4" /> Pencarian Arsip
+              <Search className="size-4 text-emerald-600" /> Pencarian Arsip
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -186,7 +184,7 @@ export default function ExplorePanel({ onChanged }: Props) {
                 <SlidersHorizontal className="size-3.5" />
                 {showFilters ? "Sembunyikan filter" : "Filter lanjutan"}
               </Button>
-              {(q || jenis || prov || periode) && (
+              {(q || jenis || prov || periode || building) && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -195,6 +193,7 @@ export default function ExplorePanel({ onChanged }: Props) {
                     setJenis("");
                     setProv("");
                     setPeriode("");
+                    setBuilding("");
                   }}
                   className="text-xs text-muted-foreground"
                 >
@@ -204,6 +203,15 @@ export default function ExplorePanel({ onChanged }: Props) {
             </div>
             {showFilters && (
               <div className="grid grid-cols-2 gap-2 pt-1">
+                <div className="space-y-1">
+                  <Label className="text-xs">Gedung</Label>
+                  <Input
+                    value={building}
+                    onChange={(e) => setBuilding(e.target.value.toUpperCase())}
+                    placeholder="G2, F4…"
+                    className="h-8 text-sm uppercase"
+                  />
+                </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Jenis</Label>
                   <Input
@@ -222,12 +230,12 @@ export default function ExplorePanel({ onChanged }: Props) {
                     className="h-8 text-sm"
                   />
                 </div>
-                <div className="space-y-1 col-span-2">
+                <div className="space-y-1">
                   <Label className="text-xs">Provenance</Label>
                   <Input
                     value={prov}
                     onChange={(e) => setProv(e.target.value)}
-                    placeholder="Badan Pusat Statistik"
+                    placeholder="BPS"
                     className="h-8 text-sm"
                   />
                 </div>
@@ -235,29 +243,34 @@ export default function ExplorePanel({ onChanged }: Props) {
             )}
             <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1 flex-wrap">
               <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
-                <FileImage className="size-3 mr-1" /> {denahStats.withSvg}/{denahStats.total} gedung berdenah
+                <FileImage className="size-3 mr-1" /> {liveBuildings.length}/{ALL_BUILDINGS.length} gedung berdenah
               </Badge>
-              {denahStats.withoutSvg > 0 && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-6 text-[11px] gap-1"
-                  onClick={() => setUploadOpen(true)}
-                >
-                  <Upload className="size-3" /> Upload denah
-                </Button>
-              )}
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 text-[11px] gap-1 px-2"
+                onClick={() => setUploadOpen(true)}
+              >
+                <Upload className="size-3" /> Upload denah
+              </Button>
             </div>
           </CardContent>
         </Card>
 
         <Card className="flex-1 min-h-0 flex flex-col">
           <CardHeader className="pb-2 shrink-0">
-            <CardTitle className="text-base">Hasil Pencarian</CardTitle>
+            <CardTitle className="text-base flex items-center justify-between">
+              <span>Hasil Pencarian</span>
+              {!loadingList && list.length > 0 && (
+                <span className="text-xs font-normal text-muted-foreground">
+                  {list.length} baris
+                </span>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent className="flex-1 min-h-0 p-0">
             <ScrollArea className="h-[calc(100vh-22rem)] lg:h-full max-h-[600px]">
-              <div className="px-4 pb-4 space-y-2">
+              <div className="px-3 pb-3 pt-1 space-y-2">
                 {loadingList ? (
                   Array.from({ length: 6 }).map((_, i) => (
                     <Skeleton key={i} className="h-16 w-full rounded-lg" />
@@ -270,22 +283,22 @@ export default function ExplorePanel({ onChanged }: Props) {
                   list.map((r) => {
                     const isSelected = r.id === selectedId;
                     const parsed = parseLokasi(r.lokasi);
-                    const hasSvg = parsed && hasDenah(parsed.building);
+                    const hasSvg = parsed && liveBuildings.includes(parsed.building);
                     return (
                       <button
                         key={r.id}
                         onClick={() => handleListClick(r)}
-                        className={`w-full text-left rounded-lg border p-3 transition-colors ${
+                        className={`w-full text-left rounded-lg border p-3 transition-all ${
                           isSelected
-                            ? "border-emerald-500 bg-emerald-50/50"
-                            : "border-border hover:border-emerald-300 hover:bg-muted/40"
+                            ? "border-emerald-500 bg-emerald-50/60 shadow-sm"
+                            : "border-border hover:border-emerald-300 hover:bg-muted/40 hover:shadow-sm"
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <div className="font-mono font-semibold text-sm">
+                          <div className="font-mono font-semibold text-sm break-all">
                             {r.lokasi || "(tanpa kode)"}
                           </div>
-                          <div className="flex flex-wrap gap-1 justify-end">
+                          <div className="flex flex-wrap gap-1 justify-end shrink-0">
                             {hasSvg ? (
                               <Badge variant="outline" className="text-emerald-700 border-emerald-300 text-[10px]">
                                 <FileImage className="size-2.5 mr-0.5" /> denah
@@ -304,7 +317,7 @@ export default function ExplorePanel({ onChanged }: Props) {
                         <div className="mt-1 text-xs text-muted-foreground line-clamp-2">
                           {r.jalanMasuk || "—"}
                         </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px]">
                           {r.jenis && <Badge variant="secondary" className="text-[10px]">{r.jenis}</Badge>}
                           {r.periode && <span className="text-muted-foreground">{r.periode}</span>}
                           {r.media && <span className="text-muted-foreground">· {r.media}</span>}
@@ -322,14 +335,19 @@ export default function ExplorePanel({ onChanged }: Props) {
       {/* ─── Main view: Denah Rak only ─── */}
       <div className="space-y-3">
         <Card className="overflow-hidden">
-          <div className="flex items-center justify-between gap-2 p-2 border-b bg-muted/30">
-            <div className="flex items-center gap-2 px-2">
+          <div className="flex items-center justify-between gap-2 p-3 border-b bg-muted/30">
+            <div className="flex items-center gap-2">
               <FileImage className="size-4 text-emerald-600" />
               <span className="text-sm font-medium">Denah Rak</span>
+              {selectedParsed && (
+                <Badge variant="outline" className="font-mono text-xs">
+                  {selectedParsed.building}.{selectedParsed.rackCode}
+                </Badge>
+              )}
             </div>
-            <div className="text-xs text-muted-foreground pr-2">
+            <div className="text-xs text-muted-foreground">
               {selectedParsed
-                ? `Lokasi: ${selectedParsed.building}.${selectedParsed.rackCode}`
+                ? "Klik rak di denah untuk lihat arsip"
                 : "Pilih lokasi untuk highlight rak"}
             </div>
           </div>
@@ -347,10 +365,10 @@ export default function ExplorePanel({ onChanged }: Props) {
           <Card>
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-2">
-                <div>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <FileImage className="size-4 text-emerald-600" />
-                    {selectedDetail.lokasi || "(tanpa kode lokasi)"}
+                <div className="min-w-0 flex-1">
+                  <CardTitle className="text-base flex items-center gap-2 flex-wrap">
+                    <Database className="size-4 text-emerald-600 shrink-0" />
+                    <span className="font-mono">{selectedDetail.lokasi || "(tanpa kode lokasi)"}</span>
                   </CardTitle>
                   <p className="mt-1 text-sm text-muted-foreground line-clamp-1">
                     {selectedDetail.jalanMasuk || "—"}
@@ -361,6 +379,7 @@ export default function ExplorePanel({ onChanged }: Props) {
                   variant="ghost"
                   onClick={() => setSelectedId(null)}
                   aria-label="Tutup detail"
+                  className="shrink-0"
                 >
                   <X className="size-4" />
                 </Button>
@@ -379,18 +398,7 @@ export default function ExplorePanel({ onChanged }: Props) {
                 <DetailItem label="P. Pengolahan" value={selectedDetail.pPengolahan} />
                 <DetailItem label="P. Digitalisasi" value={selectedDetail.pDigitalisasi} />
                 <DetailItem label="P. Restorasi" value={selectedDetail.pRestorasi} />
-                {selectedDetail.latitude != null && selectedDetail.longitude != null && (
-                  <DetailItem
-                    label="Koordinat"
-                    value={`${selectedDetail.latitude.toFixed(4)}, ${selectedDetail.longitude.toFixed(4)}`}
-                  />
-                )}
               </div>
-              {selectedDetail.address && (
-                <div className="mt-3 pt-3 border-t text-xs text-muted-foreground">
-                  <b>Alamat:</b> {selectedDetail.address}
-                </div>
-              )}
             </CardContent>
           </Card>
         )}
@@ -462,9 +470,8 @@ export default function ExplorePanel({ onChanged }: Props) {
         onOpenChange={setUploadOpen}
         onUploaded={() => {
           setUploadOpen(false);
-          // Force a refresh by reloading the list
+          refreshAvailableBuildings().then(setLiveBuildings);
           loadList();
-          // Notify parent (refreshes stats if admin)
           onChanged?.();
         }}
       />

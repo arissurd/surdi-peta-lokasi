@@ -106,3 +106,39 @@ Stage Summary:
 - 4 masalah selesai: peta dunia dihapus (hanya denah rak), hover berfungsi setelah klik rak (warna oranye khusus untuk hover rak terpilih), kode lokasi dihapus dari item popup, dan fitur upload denah baru memungkinkan admin menambah/ganti SVG untuk gedung manapun (E3, F3, F4, dst) tanpa perlu deploy ulang.
 - Cache gedung tersedia live-update sehingga setelah upload, badge list dan dropdown DenahView langsung menampilkan gedung baru tanpa refresh.
 - API upload memiliki validasi: admin-only, kode gedung harus ada di whitelist, file harus SVG (<10 MB), strip XML declaration.
+
+---
+Task ID: remove-coords-and-polish
+Agent: main (Super Z)
+Task: Hapus kolom koordinat (latitude/longitude/address) dari seluruh aplikasi dan perbaiki tampilan.
+
+Work Log:
+- Prisma schema: hapus 3 field (`latitude`, `longitude`, `address`) dari model Location. Jalankan `prisma db push` yang menghapus kolom dari SQLite (43615 address, 1784 lat, 1784 lng).
+- API routes:
+  - `/api/locations` GET: hapus filter `mapped` dan `mode=map`, tambah filter `building` (untuk filter per-gedung). POST: hapus field coords dari data create.
+  - `/api/locations/[id]` PATCH: hapus `address`, `latitude`, `longitude` dari whitelist field yang bisa diupdate.
+  - `/api/locations/by-code`: hapus `latitude`, `longitude` dari select.
+  - `/api/stats`: hapus `mappedLocations` dan `unmappedLocations` dari response.
+- `src/lib/api.ts`: hapus field coords dari type `Location`, hapus `MapMarker` type, hapus `MapResponse` type, hapus `mappedLocations`/`unmappedLocations` dari `Stats`, hapus method `api.mapMarkers()`, tambah param `building` ke `api.list()`.
+- `LocationFormDialog`: hapus 3 field koordinat (latitude, longitude, address) dari form grid, sekarang hanya 13 field arsip. Hapus import Textarea (tidak lagi dipakai).
+- `ExplorePanel`: hapus "Koordinat" dari detail card grid (sekarang 11 field), hapus semua referensi ke `latitude`/`longitude`. Tambah filter "Gedung" di advanced filters. Card detail header pakai icon Database (bukan MapPin) karena tidak ada lagi konteks peta.
+- `AdminPanel`:
+  - Stats tab: 3 KPI cards (Total Arsip, Total Pengguna, Admin Aktif) — hapus "Belum Terpetakan". Setiap card sekarang punya icon di kanan.
+  - Locations tab: hapus kolom "Koordinat" dari tabel, tambah kolom "Provenance" + filter "Gedung".
+  - Tambah tab baru "Denah" dengan grid 20 gedung (badge hijau untuk yang sudah berdenah, kuning untuk yang belum) + tombol "Upload Denah" + petunjuk format SVG.
+- Hapus file `src/components/MapView.tsx` (tidak lagi dipakai).
+- Fix lint error `react-hooks/set-state-in-effect` di DenahPanel: refactor dari pattern `useCallback(load) + useEffect(load)` menjadi IIFE async di dalam effect dengan cancellation flag.
+- Restart dev server untuk pickup Prisma client baru (clear `.next/cache`).
+- Verifikasi Agent Browser:
+  - Login admin → explore panel menampilkan list dengan badge "denah" (tanpa "no coord"/"peta").
+  - Search "G2.R190" → list muncul → klik → denah G2 dimuat, r190 highlighted.
+  - Detail card: 11 field arsip, TIDAK ada "Koordinat" ✅
+  - Admin tab → Statistik: 3 KPI cards (tidak ada "Belum Terpetakan") ✅
+  - Admin tab → Lokasi: tabel dengan kolom (Lokasi, Jalan Masuk, Jenis, Periode, Provenance, Aksi) — tidak ada "Koordinat" ✅
+  - Admin tab → Denah: grid 20 gedung dengan badge status, tombol Upload ✅
+- Lint: clean. No runtime errors.
+
+Stage Summary:
+- Kolom koordinat (latitude, longitude, address) sepenuhnya dihapus dari: Prisma schema, SQLite DB, semua API routes, TypeScript types, LocationFormDialog, ExplorePanel detail card, AdminPanel stats card + location table.
+- Tampilan diperbaiki: filter "Gedung" baru di explore dan admin, tab admin baru "Denah" untuk kelola SVG per gedung, icon di setiap KPI card, badge layout lebih rapi.
+- File `MapView.tsx` dihapus (tidak lagi dipakai setelah peta dunia dihilangkan).

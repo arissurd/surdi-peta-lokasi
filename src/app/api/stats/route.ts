@@ -2,9 +2,8 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
 export async function GET() {
-  const [totalLocations, mappedLocations, totalUsers, adminUsers] = await Promise.all([
+  const [totalLocations, totalUsers, adminUsers] = await Promise.all([
     db.location.count(),
-    db.location.count({ where: { NOT: [{ latitude: null }, { longitude: null }] } }),
     db.user.count(),
     db.user.count({ where: { role: "ADMIN" } }),
   ]);
@@ -32,8 +31,6 @@ export async function GET() {
 
   return NextResponse.json({
     totalLocations,
-    mappedLocations,
-    unmappedLocations: totalLocations - mappedLocations,
     totalUsers,
     adminUsers,
     regularUsers: totalUsers - adminUsers,

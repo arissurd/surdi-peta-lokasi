@@ -22,12 +22,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   for (const k of [
     "provenance", "jalanMasuk", "periode", "lokasi", "jenis", "media",
     "nomorJumlah", "bagian", "pAkuisisi", "pPengolahan", "pDigitalisasi",
-    "pRestorasi", "noInventaris", "address",
+    "pRestorasi", "noInventaris",
   ]) {
     if (k in body) data[k] = body[k] === "" ? null : body[k];
   }
-  if ("latitude" in body) data.latitude = body.latitude === "" || body.latitude == null ? null : Number(body.latitude);
-  if ("longitude" in body) data.longitude = body.longitude === "" || body.longitude == null ? null : Number(body.longitude);
   try {
     const updated = await db.location.update({ where: { id }, data });
     return NextResponse.json({ data: updated });

@@ -25,9 +25,6 @@ export type Location = {
   pDigitalisasi: string | null;
   pRestorasi: string | null;
   noInventaris: string | null;
-  latitude: number | null;
-  longitude: number | null;
-  address: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -42,8 +39,6 @@ export type MapMarker = Pick<
   | "media"
   | "periode"
   | "bagian"
-  | "latitude"
-  | "longitude"
 >;
 
 export type ListResponse = {
@@ -60,8 +55,6 @@ export type MapResponse = {
 
 export type Stats = {
   totalLocations: number;
-  mappedLocations: number;
-  unmappedLocations: number;
   totalUsers: number;
   adminUsers: number;
   regularUsers: number;
@@ -124,7 +117,7 @@ export const api = {
     jenis?: string;
     prov?: string;
     periode?: string;
-    mapped?: boolean;
+    building?: string;
     page?: number;
     limit?: number;
   }) => {
@@ -133,19 +126,10 @@ export const api = {
     if (params.jenis) u.searchParams.set("jenis", params.jenis);
     if (params.prov) u.searchParams.set("prov", params.prov);
     if (params.periode) u.searchParams.set("periode", params.periode);
-    if (params.mapped) u.searchParams.set("mapped", "1");
+    if (params.building) u.searchParams.set("building", params.building);
     if (params.page) u.searchParams.set("page", String(params.page));
     if (params.limit) u.searchParams.set("limit", String(params.limit));
     return req<ListResponse>(u.toString());
-  },
-  mapMarkers: (params: { q?: string; jenis?: string; prov?: string; periode?: string }) => {
-    const u = new URL("/api/locations", window.location.origin);
-    u.searchParams.set("mode", "map");
-    if (params.q) u.searchParams.set("q", params.q);
-    if (params.jenis) u.searchParams.set("jenis", params.jenis);
-    if (params.prov) u.searchParams.set("prov", params.prov);
-    if (params.periode) u.searchParams.set("periode", params.periode);
-    return req<MapResponse>(u.toString());
   },
   getLocation: (id: string) =>
     req<{ data: Location }>(`/api/locations/${id}`),

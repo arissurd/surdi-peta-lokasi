@@ -4,8 +4,7 @@ import { db } from "@/lib/db";
 /**
  * GET /api/locations/by-code?code=G2.R1
  * Returns all archive rows that share the same lokasi code.
- * SQLite is case-sensitive by default for `equals`, so we use a
- * case-insensitive `startsWith` on the uppercased code.
+ * SQLite is case-sensitive by default, so we query both upper and lower variants.
  *
  * Used by the denah rack-click popup.
  */
@@ -16,8 +15,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Parameter `code` wajib diisi" }, { status: 400 });
   }
 
-  // SQLite: emulate case-insensitive match by querying both upper and lower
-  // variants and merging. Lokasi values in DB are typically uppercase like "G8.R139".
   const lowerCode = code.toLowerCase();
 
   const rows = await db.location.findMany({
@@ -40,8 +37,6 @@ export async function GET(req: NextRequest) {
       nomorJumlah: true,
       bagian: true,
       noInventaris: true,
-      latitude: true,
-      longitude: true,
     },
     take: 500,
     orderBy: { lokasi: "asc" },

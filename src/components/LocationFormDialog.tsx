@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -24,7 +23,7 @@ type Props = {
   onSaved: () => void;
 };
 
-const FIELDS: { key: keyof Location; label: string; full?: boolean; numeric?: boolean }[] = [
+const FIELDS: { key: keyof Location; label: string; full?: boolean }[] = [
   { key: "provenance", label: "Provenance" },
   { key: "jalanMasuk", label: "Jalan Masuk", full: true },
   { key: "periode", label: "Periode" },
@@ -38,8 +37,6 @@ const FIELDS: { key: keyof Location; label: string; full?: boolean; numeric?: bo
   { key: "pDigitalisasi", label: "P. Digitalisasi" },
   { key: "pRestorasi", label: "P. Restorasi" },
   { key: "noInventaris", label: "No. Inventaris" },
-  { key: "latitude", label: "Latitude", numeric: true },
-  { key: "longitude", label: "Longitude", numeric: true },
 ];
 
 export default function LocationFormDialog({ open, onOpenChange, editing, onSaved }: Props) {
@@ -53,7 +50,6 @@ export default function LocationFormDialog({ open, onOpenChange, editing, onSave
       const v = editing?.[f.key];
       obj[f.key] = v == null ? "" : String(v);
     }
-    obj["address"] = editing?.address || "";
     setForm(obj);
   }, [open, editing]);
 
@@ -64,13 +60,8 @@ export default function LocationFormDialog({ open, onOpenChange, editing, onSave
     const body: any = {};
     for (const f of FIELDS) {
       const v = (form[f.key] || "").trim();
-      if (f.numeric) {
-        body[f.key] = v === "" ? null : Number(v);
-      } else {
-        body[f.key] = v === "" ? null : v;
-      }
+      body[f.key] = v === "" ? null : v;
     }
-    body.address = (form.address || "").trim() || null;
 
     setSaving(true);
     try {
@@ -97,7 +88,7 @@ export default function LocationFormDialog({ open, onOpenChange, editing, onSave
           <DialogDescription>
             {editing
               ? `Edit data untuk lokasi ${editing.lokasi || "(tanpa kode)"}`
-              : "Isi data arsip baru. Field bertanda * wajib diisi."}
+              : "Isi data arsip baru."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
@@ -111,24 +102,16 @@ export default function LocationFormDialog({ open, onOpenChange, editing, onSave
                   id={`f-${f.key}`}
                   value={form[f.key] || ""}
                   onChange={(e) => setField(f.key, e.target.value)}
-                  inputMode={f.numeric ? "decimal" : undefined}
-                  type={f.numeric ? "text" : "text"}
-                  placeholder={f.numeric ? "contoh: -6.2088" : ""}
+                  placeholder={
+                    f.key === "lokasi"
+                      ? "contoh: G2.R1"
+                      : f.key === "periode"
+                      ? "contoh: 1980"
+                      : ""
+                  }
                 />
               </div>
             ))}
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="f-address" className="text-xs">
-              Alamat (untuk tampilan peta)
-            </Label>
-            <Textarea
-              id="f-address"
-              value={form.address || ""}
-              onChange={(e) => setField("address", e.target.value)}
-              rows={2}
-              placeholder="Alamat lengkap, contoh: BPS Provinsi DI Aceh, Banda Aceh"
-            />
           </div>
           <DialogFooter className="sticky bottom-0 bg-background/80 backdrop-blur pt-2 -mx-6 px-6 border-t">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

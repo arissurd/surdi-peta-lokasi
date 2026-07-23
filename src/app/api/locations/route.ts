@@ -8,10 +8,9 @@ export async function GET(req: NextRequest) {
   const jenis = (url.searchParams.get("jenis") || "").trim();
   const prov = (url.searchParams.get("prov") || "").trim();
   const periode = (url.searchParams.get("periode") || "").trim();
-  const onlyMapped = url.searchParams.get("mapped") === "1";
+  const building = (url.searchParams.get("building") || "").trim().toUpperCase();
   const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
   const limit = Math.min(200, Math.max(1, parseInt(url.searchParams.get("limit") || "50", 10)));
-  const mode = url.searchParams.get("mode") || "list"; // 'list' | 'map'
 
   const where: any = {};
   if (q) {
@@ -26,31 +25,7 @@ export async function GET(req: NextRequest) {
   if (jenis) where.jenis = jenis;
   if (prov) where.provenance = { contains: prov };
   if (periode) where.periode = { contains: periode };
-  if (onlyMapped) {
-    where.NOT = [{ latitude: null }, { longitude: null }];
-  }
-
-  // Map mode: only return locations with coords, no pagination, capped
-  if (mode === "map") {
-    where.NOT = [{ latitude: null }, { longitude: null }];
-    const rows = await db.location.findMany({
-      where,
-      select: {
-        id: true,
-        lokasi: true,
-        jalanMasuk: true,
-        provenance: true,
-        jenis: true,
-        media: true,
-        periode: true,
-        bagian: true,
-        latitude: true,
-        longitude: true,
-      },
-      take: 2000,
-    });
-    return NextResponse.json({ markers: rows, total: rows.length });
-  }
+  if (building) where.lokasi = { startsWith: building + "." };
 
   const [rows, total] = await Promise.all([
     db.location.findMany({
@@ -87,9 +62,6 @@ export async function POST(req: NextRequest) {
         pDigitalisasi: body.pDigitalisasi ?? null,
         pRestorasi: body.pRestorasi ?? null,
         noInventaris: body.noInventaris ?? null,
-        latitude: body.latitude != null && body.latitude !== "" ? Number(body.latitude) : null,
-        longitude: body.longitude != null && body.longitude !== "" ? Number(body.longitude) : null,
-        address: body.address ?? body.jalanMasuk ?? null,
       },
     });
     return NextResponse.json({ data: created });
