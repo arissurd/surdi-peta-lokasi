@@ -149,6 +149,11 @@ export const api = {
   },
   getLocation: (id: string) =>
     req<{ data: Location }>(`/api/locations/${id}`),
+  byCode: (code: string) => {
+    const u = new URL("/api/locations/by-code", window.location.origin);
+    u.searchParams.set("code", code);
+    return req<{ code: string; count: number; data: Location[] }>(u.toString());
+  },
   createLocation: (body: Partial<Location>) =>
     req<{ data: Location }>("/api/locations", {
       method: "POST",
