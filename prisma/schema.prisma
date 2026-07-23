@@ -1,0 +1,52 @@
+// Prisma schema for SURDI Map Location application
+// Database: SQLite (file-based)
+// Models: User (with role), Location (mapped from tb_lokasi sheet)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String
+  role      String   @default("USER") // "USER" | "ADMIN"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+}
+
+model Location {
+  id            String   @id @default(cuid())
+  provenance    String?
+  jalanMasuk    String?
+  periode       String?
+  lokasi        String?  // kode lokasi (e.g. E3.A1.1)
+  jenis         String?
+  media         String?
+  nomorJumlah   String?
+  bagian        String?
+  pAkuisisi     String?
+  pPengolahan   String?
+  pDigitalisasi String?
+  pRestorasi    String?
+  noInventaris  String?
+  // Map-related fields (admin can fill these to enable map display)
+  latitude      Float?
+  longitude     Float?
+  address       String?  // human-readable address resolved from jalanMasuk
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([lokasi])
+  @@index([provenance])
+  @@index([jalanMasuk])
+  @@index([jenis])
+}
