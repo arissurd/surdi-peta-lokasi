@@ -352,9 +352,10 @@ export default function ExplorePanel({ onChanged }: Props) {
             </div>
           </div>
 
-          <CardContent className="p-0 h-[55vh] lg:h-[calc(100vh-15rem)] min-h-[400px] relative">
+          <CardContent className="p-0 h-[60vh] lg:h-[calc(100vh-15rem)] min-h-[400px] relative">
             <DenahView
               lokasi={selectedDetail?.lokasi}
+              highlightRackCode={rackPopupCode}
               onRackClick={handleRackClick}
             />
           </CardContent>

@@ -142,3 +142,30 @@ Stage Summary:
 - Kolom koordinat (latitude, longitude, address) sepenuhnya dihapus dari: Prisma schema, SQLite DB, semua API routes, TypeScript types, LocationFormDialog, ExplorePanel detail card, AdminPanel stats card + location table.
 - Tampilan diperbaiki: filter "Gedung" baru di explore dan admin, tab admin baru "Denah" untuk kelola SVG per gedung, icon di setiap KPI card, badge layout lebih rapi.
 - File `MapView.tsx` dihapus (tidak lagi dipakai setelah peta dunia dihilangkan).
+
+---
+Task ID: fix-hover-highlight-persist-v2
+Agent: main (Super Z)
+Task: Hover dan highlight masih hilang saat denah diklik — fix root cause.
+
+Work Log:
+- Reproduce: klik G2.R190 → r190 highlighted (rack count 239, highlight 1) → dispatch click pada r191 → setelah klik, denah-rack count = 0, denah-highlight count = 0 (SEMUA class hilang!).
+- Root cause #1: File DenahView.tsx ter-revert ke versi lama (tidak ada DenahSvgHost, tidak ada zoom/pan, tidak ada highlightRackCode prop). Masih pakai `dangerouslySetInnerHTML` yang di-reset oleh React 19 setiap kali parent re-render (saat popup buka/tutup).
+- Root cause #2: prop `highlightRackCode` tidak di-pass dari ExplorePanel ke DenahView.
+- Fix #1: Rewrite DenahView.tsx lengkap dengan:
+  - Komponen `DenahSvgHost` (forwardRef + callback ref) yang menulis innerHTML imperatif. innerHTML hanya ditulis ketika `svgText` berubah. React tidak pernah menyentuh DOM ini lagi → class denah-rack dan denah-highlight tidak ter-reset.
+  - Zoom/pan controls (tombol floating + wheel + drag).
+  - Prop `highlightRackCode` untuk highlight rak yang diklik (selain rak detail terpilih).
+  - `highlightIds` menggabungkan clickedParsed + parsed → keduanya di-highlight saat popup terbuka.
+- Fix #2: Tambah `highlightRackCode={rackPopupCode}` di pemanggilan DenahView di ExplorePanel.tsx.
+- Verifikasi Agent Browser:
+  - Search G2.R190 → klik → r190 highlighted (rack count 239, highlight 1).
+  - Dispatch click pada r191 → setelah klik: rack count 239 (persist!), highlight count 2 (r190 + r191), popup terbuka. ✓
+  - Tutup popup (Escape) → rack count 239, highlight count 1 (r190 saja). ✓
+  - Hover r190 (highlighted) → fill berubah ke oranye #f97316 (denah-rack.denah-highlight:hover rule works). ✓
+  - Hover r236 (non-highlighted) → fill berubah ke kuning #fde68a (denah-rack:hover rule works). ✓
+
+Stage Summary:
+- Root cause ditemukan dan diperbaiki: DenahSvgHost (imperative innerHTML) + prop highlightRackCode yang sebelumnya hilang.
+- Setelah klik rak: class denah-rack (239 rack) dan denah-highlight tetap ada — hover dan highlight tidak hilang.
+- Hover rak terpilih → oranye; hover rak biasa → kuning; rak terpilih tetap merah saat tidak di-hover.

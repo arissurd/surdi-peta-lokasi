@@ -1,8 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -10,20 +9,55 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, MapPin, AlertCircle, FileImage } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Loader2,
+  MapPin,
+  AlertCircle,
+  FileImage,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Move,
+} from "lucide-react";
+
+// ─── SVG host that writes innerHTML imperatively ───────────────────────────
+// Bypass React's reconciliation for the SVG content by setting innerHTML
+// directly via ref. This prevents React from wiping our highlight/rack CSS
+// classes (added by the highlight effect) when the parent re-renders due to
+// unrelated state changes (popup open/close, zoom, pan, etc.).
+const DenahSvgHost = forwardRef<
+  HTMLDivElement,
+  { svgText: string; className?: string }
+>(function DenahSvgHost({ svgText, className }, ref) {
+  const lastSvgRef = useRef<string>("");
+
+  const setInnerRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (typeof ref === "function") {
+        ref(node);
+      } else if (ref) {
+        (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
+      }
+      if (node && lastSvgRef.current !== svgText) {
+        lastSvgRef.current = svgText;
+        node.innerHTML = svgText;
+      }
+    },
+    [ref, svgText]
+  );
+
+  return <div ref={setInnerRef} className={className || "p-4"} />;
+});
 
 // ─── Static default floor plans (shipped in /public/denah/) ─────────────────
-// Runtime will merge in any user-uploaded SVGs (via /api/denah/list) on top
-// of this list, so newly-uploaded buildings become immediately available.
 export const DEFAULT_BUILDINGS = [
   "E5", "F2", "F5", "F6",
   "G2", "G3", "G4", "G5", "G6", "G7", "G8",
 ] as const;
 
-// Backward-compat alias (some imports still reference AVAILABLE_BUILDINGS)
 export const AVAILABLE_BUILDINGS = DEFAULT_BUILDINGS;
 
-// ─── All known buildings from the DB (used by the upload-denah picker) ───
 export const ALL_BUILDINGS = [
   "E3", "E4", "E5", "E6", "E7",
   "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9",
@@ -32,8 +66,8 @@ export const ALL_BUILDINGS = [
 
 // ─── Parse a location code like "G2.R1", "G5.R201", "F4.R8.SAF9" ─────────
 export type ParsedLokasi = {
-  building: string;  // "G2"
-  rackCode: string;  // "R1" (uppercase)
+  building: string;
+  rackCode: string;
   raw: string;
 };
 
@@ -53,9 +87,7 @@ export function parseLokasi(raw: string | null | undefined): ParsedLokasi | null
   };
 }
 
-// ─── Module-level cache of available buildings (shared across instances) ──
-// Populated from /api/denah/list on first DenahView mount. Other components
-// (like ExplorePanel's badges) can read this synchronously via getAvailableBuildings().
+// ─── Module-level cache of available buildings ────────────────────────────
 let availableBuildingsCache: string[] = [...DEFAULT_BUILDINGS];
 const availableBuildingsListeners = new Set<() => void>();
 
@@ -70,7 +102,6 @@ export function subscribeAvailableBuildings(cb: () => void): () => void {
 
 function setAvailableBuildings(next: string[]) {
   const sorted = Array.from(new Set([...DEFAULT_BUILDINGS, ...next])).sort();
-  // Only fire if changed
   if (
     sorted.length !== availableBuildingsCache.length ||
     sorted.some((b, i) => b !== availableBuildingsCache[i])
@@ -80,7 +111,6 @@ function setAvailableBuildings(next: string[]) {
   }
 }
 
-/** Refresh the available-buildings cache from the server. */
 export async function refreshAvailableBuildings(): Promise<string[]> {
   try {
     const res = await fetch("/api/denah/list");
@@ -93,39 +123,41 @@ export async function refreshAvailableBuildings(): Promise<string[]> {
   }
 }
 
-// Check if a building has a floor plan SVG (uses the live cache)
 export function hasDenah(building: string | null | undefined): boolean {
   if (!building) return false;
   return availableBuildingsCache.includes(building.toUpperCase());
 }
 
-// Convert rack code "R1" / "RK12" to SVG element ID "r1" / "rk12"
 function rackCodeToSvgId(rackCode: string): string | null {
   const cleaned = String(rackCode).toLowerCase().replace(/[^a-z0-9]/g, "");
   if (!/^(r|rk|rb|ra|ry)\d+$/.test(cleaned)) return null;
   return cleaned;
 }
 
+const MIN_ZOOM = 0.3;
+const MAX_ZOOM = 5;
+const ZOOM_STEP = 1.25;
+
 type Props = {
-  /** Active location code (e.g. "G2.R1") — if provided, rack will be highlighted */
   lokasi?: string | null;
-  /** Initial building to show */
   initialBuilding?: string;
-  /** Called when user clicks a rack in the SVG */
   onRackClick?: (lokasiCode: string) => void;
+  /** Optional override rack code to highlight (takes precedence over `lokasi`) */
+  highlightRackCode?: string | null;
 };
 
-export default function DenahView({ lokasi, initialBuilding, onRackClick }: Props) {
+export default function DenahView({ lokasi, initialBuilding, onRackClick, highlightRackCode }: Props) {
   const parsed = useMemo(() => parseLokasi(lokasi), [lokasi]);
+  const clickedParsed = useMemo(
+    () => parseLokasi(highlightRackCode),
+    [highlightRackCode]
+  );
 
-  // Subscribe to the available-buildings cache so the dropdown & hasDenah
-  // checks update live when an admin uploads a new SVG.
   const [, forceUpdate] = useState(0);
   useEffect(() => {
     return subscribeAvailableBuildings(() => forceUpdate((n) => n + 1));
   }, []);
 
-  // Refresh cache on mount
   useEffect(() => {
     refreshAvailableBuildings();
   }, []);
@@ -133,32 +165,47 @@ export default function DenahView({ lokasi, initialBuilding, onRackClick }: Prop
   const availableList = getAvailableBuildings();
 
   const defaultBuilding = useMemo(() => {
+    if (clickedParsed && hasDenah(clickedParsed.building)) return clickedParsed.building;
     if (parsed && hasDenah(parsed.building)) return parsed.building;
     if (initialBuilding && hasDenah(initialBuilding)) return initialBuilding.toUpperCase();
     return availableList[0] || "G2";
-  }, [parsed, initialBuilding, availableList]);
+  }, [parsed, clickedParsed, initialBuilding, availableList]);
 
   const [activeBuilding, setActiveBuilding] = useState<string>(defaultBuilding);
 
-  // Sync activeBuilding when lokasi changes
   useEffect(() => {
-    if (parsed && hasDenah(parsed.building) && parsed.building !== activeBuilding) {
-      setActiveBuilding(parsed.building);
+    const target = clickedParsed || parsed;
+    if (target && hasDenah(target.building) && target.building !== activeBuilding) {
+      setActiveBuilding(target.building);
+      setZoom(1);
+      setPan({ x: 0, y: 0 });
     }
-  }, [parsed, activeBuilding]);
+  }, [parsed, clickedParsed, activeBuilding]);
 
   const [svgText, setSvgText] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const svgHostRef = useRef<HTMLDivElement>(null);
 
+  // Zoom & pan state
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
+
+  // Highlight set: prefer the clicked rack, fall back to the selected detail's rack.
   const highlightIds = useMemo(() => {
-    if (!parsed || parsed.building !== activeBuilding) return [];
-    const svgId = rackCodeToSvgId(parsed.rackCode);
-    return svgId ? [svgId] : [];
-  }, [parsed, activeBuilding]);
+    const candidates = [clickedParsed, parsed];
+    const ids: string[] = [];
+    for (const c of candidates) {
+      if (!c || c.building !== activeBuilding) continue;
+      const svgId = rackCodeToSvgId(c.rackCode);
+      if (svgId && !ids.includes(svgId)) ids.push(svgId);
+    }
+    return ids;
+  }, [parsed, clickedParsed, activeBuilding]);
 
-  // Fetch SVG when activeBuilding changes
   const loadSvg = useCallback(async (building: string) => {
     if (!hasDenah(building)) {
       setSvgText("");
@@ -173,6 +220,8 @@ export default function DenahView({ lokasi, initialBuilding, onRackClick }: Prop
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const text = await res.text();
       setSvgText(text);
+      setZoom(1);
+      setPan({ x: 0, y: 0 });
     } catch (e: any) {
       setSvgText("");
       setError(e?.message || "Gagal memuat denah");
@@ -186,30 +235,25 @@ export default function DenahView({ lokasi, initialBuilding, onRackClick }: Prop
   }, [activeBuilding, loadSvg]);
 
   // Apply highlights + scroll-to-rack after SVG renders.
-  // Also tags all rack elements with .denah-rack (for hover) — re-applied every
-  // time svgText or highlightIds change so a newly-rendered SVG always has hover.
+  // Re-runs whenever svgText changes (new building loaded) OR highlightIds
+  // changes (user clicked a different rack / selected a different row).
   useEffect(() => {
-    if (!svgText || !wrapRef.current) return;
-    const wrap = wrapRef.current;
-    const svg = wrap.querySelector("svg");
+    if (!svgText || !svgHostRef.current) return;
+    const host = svgHostRef.current;
+    const svg = host.querySelector("svg");
     if (!svg) return;
 
-    // Make sure SVG scales nicely
     svg.setAttribute("width", "100%");
     svg.setAttribute("height", "auto");
-    svg.style.maxWidth = "100%";
+    svg.style.maxWidth = "none";
     svg.style.display = "block";
     svg.style.margin = "0 auto";
+    svg.style.transformOrigin = "center center";
 
-    // Inject highlight CSS once
     const styleId = "denah-highlight-style";
     if (!document.getElementById(styleId)) {
       const styleEl = document.createElement("style");
       styleEl.id = styleId;
-      // Note: hover rule comes BEFORE the highlight rule so highlight wins
-      // by specificity (later rule), but we also add an explicit
-      // .denah-rack.denah-highlight:hover override so the highlighted rack
-      // can still show a distinct hover state when re-hovered.
       styleEl.textContent = `
         .denah-rack {
           cursor: pointer;
@@ -237,8 +281,7 @@ export default function DenahView({ lokasi, initialBuilding, onRackClick }: Prop
       document.head.appendChild(styleEl);
     }
 
-    // (Re)tag all rack elements. We add the class every time because React
-    // re-renders the SVG innerHTML on every loadSvg call, wiping classes.
+    // Tag all rack elements (re-applied every time in case SVG was reloaded)
     const allRackEls = svg.querySelectorAll("[id]");
     allRackEls.forEach((el) => {
       const id = el.getAttribute("id") || "";
@@ -275,7 +318,15 @@ export default function DenahView({ lokasi, initialBuilding, onRackClick }: Prop
     }
   }, [svgText, highlightIds]);
 
-  // Click delegation on SVG (capture phase to survive re-renders)
+  // Apply zoom & pan transform to the SVG element
+  useEffect(() => {
+    if (!svgHostRef.current) return;
+    const svg = svgHostRef.current.querySelector("svg");
+    if (!svg) return;
+    svg.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`;
+  }, [zoom, pan, svgText]);
+
+  // Click delegation (capture phase)
   useEffect(() => {
     const handler = (event: MouseEvent) => {
       const target = event.target as Element | null;
@@ -297,22 +348,109 @@ export default function DenahView({ lokasi, initialBuilding, onRackClick }: Prop
     return () => document.removeEventListener("click", handler, true);
   }, [activeBuilding, onRackClick]);
 
+  // Wheel zoom (cursor-anchored)
+  const onWheel = useCallback(
+    (e: React.WheelEvent) => {
+      if (!svgHostRef.current) return;
+      e.preventDefault();
+      const rect = svgHostRef.current.getBoundingClientRect();
+      const cx = e.clientX - rect.left - rect.width / 2;
+      const cy = e.clientY - rect.top - rect.height / 2;
+
+      const direction = e.deltaY < 0 ? 1 : -1;
+      const factor = direction > 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
+      const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom * factor));
+      const ratio = newZoom / zoom;
+
+      setPan((prev) => ({
+        x: cx - (cx - prev.x) * ratio,
+        y: cy - (cy - prev.y) * ratio,
+      }));
+      setZoom(newZoom);
+    },
+    [zoom]
+  );
+
+  // Drag-to-pan
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      const target = e.target as Element;
+      const isRackPattern = (() => {
+        let el: Element | null = target;
+        for (let i = 0; i < 5 && el; i++) {
+          const id = el.getAttribute && el.getAttribute("id");
+          if (id && /^(r|rk|rb|ra|ry)\d+$/i.test(id)) return true;
+          el = el.parentElement;
+        }
+        return false;
+      })();
+
+      if (e.button === 0 && isRackPattern) return;
+      if (e.button !== 0 && e.button !== 1) return;
+
+      svgHostRef.current?.setPointerCapture(e.pointerId);
+      setIsDragging(true);
+      dragStartRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        panX: pan.x,
+        panY: pan.y,
+      };
+    },
+    [pan]
+  );
+
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!isDragging || !dragStartRef.current) return;
+      const dx = e.clientX - dragStartRef.current.x;
+      const dy = e.clientY - dragStartRef.current.y;
+      setPan({
+        x: dragStartRef.current.panX + dx,
+        y: dragStartRef.current.panY + dy,
+      });
+    },
+    [isDragging]
+  );
+
+  const onPointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      if (isDragging) {
+        svgHostRef.current?.releasePointerCapture(e.pointerId);
+        setIsDragging(false);
+        dragStartRef.current = null;
+      }
+    },
+    [isDragging]
+  );
+
+  const zoomIn = useCallback(() => {
+    setZoom((z) => Math.min(MAX_ZOOM, z * ZOOM_STEP));
+  }, []);
+  const zoomOut = useCallback(() => {
+    setZoom((z) => Math.max(MIN_ZOOM, z / ZOOM_STEP));
+  }, []);
+  const resetView = useCallback(() => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }, []);
+
   return (
     <div className="flex flex-col h-full">
       {/* Building selector + info bar */}
-      <div className="flex items-center justify-between gap-2 p-3 border-b bg-muted/30 flex-wrap">
-        <div className="flex items-center gap-2">
-          <FileImage className="size-4 text-emerald-600" />
-          <span className="text-sm font-medium">Denah Rak</span>
-        </div>
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-2 p-2 sm:p-3 border-b bg-muted/30 flex-wrap">
+        <div className="flex items-center gap-2 min-w-0">
+          <FileImage className="size-4 text-emerald-600 shrink-0" />
+          <span className="text-sm font-medium hidden sm:inline">Denah Rak</span>
           {parsed && (
             <Badge variant="outline" className="font-mono text-xs">
               {parsed.building}.{parsed.rackCode}
             </Badge>
           )}
+        </div>
+        <div className="flex items-center gap-1.5">
           <Select value={activeBuilding} onValueChange={(v) => setActiveBuilding(v)}>
-            <SelectTrigger className="w-[110px] h-8">
+            <SelectTrigger className="w-[100px] sm:w-[110px] h-8">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -326,10 +464,10 @@ export default function DenahView({ lokasi, initialBuilding, onRackClick }: Prop
         </div>
       </div>
 
-      {/* SVG canvas */}
+      {/* SVG canvas with zoom controls */}
       <div className="flex-1 min-h-0 bg-slate-50 relative">
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground z-10">
             <div className="flex flex-col items-center gap-2">
               <Loader2 className="size-6 animate-spin" />
               <span className="text-sm">Memuat denah {activeBuilding}…</span>
@@ -348,21 +486,76 @@ export default function DenahView({ lokasi, initialBuilding, onRackClick }: Prop
           </div>
         )}
         {!loading && !error && svgText && (
-          <ScrollArea className="h-full max-h-[calc(100vh-15rem)]">
-            <div
-              ref={wrapRef}
-              className="p-4"
-              dangerouslySetInnerHTML={{ __html: svgText }}
-            />
-          </ScrollArea>
+          <div
+            ref={wrapRef}
+            className="w-full h-full overflow-hidden relative"
+            style={{ cursor: isDragging ? "grabbing" : "grab", touchAction: "none" }}
+            onWheel={onWheel}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
+          >
+            <DenahSvgHost ref={svgHostRef} svgText={svgText} />
+          </div>
+        )}
+
+        {/* Floating zoom controls */}
+        {!error && !loading && svgText && (
+          <div className="absolute bottom-3 right-3 flex flex-col gap-1.5 bg-background/95 backdrop-blur border rounded-lg shadow-lg p-1.5 z-20">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-8"
+              onClick={zoomIn}
+              disabled={zoom >= MAX_ZOOM}
+              aria-label="Zoom in"
+              title="Perbesar (scroll juga bisa)"
+            >
+              <ZoomIn className="size-4" />
+            </Button>
+            <div className="text-center text-[10px] font-mono text-muted-foreground py-0.5">
+              {Math.round(zoom * 100)}%
+            </div>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-8"
+              onClick={zoomOut}
+              disabled={zoom <= MIN_ZOOM}
+              aria-label="Zoom out"
+              title="Perkecil"
+            >
+              <ZoomOut className="size-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="size-8"
+              onClick={resetView}
+              aria-label="Reset view"
+              title="Reset tampilan"
+            >
+              <Maximize2 className="size-4" />
+            </Button>
+          </div>
+        )}
+
+        {/* Hint badge */}
+        {!error && !loading && svgText && (
+          <div className="absolute top-2 left-2 bg-background/95 backdrop-blur border rounded-md px-2 py-1 text-[10px] text-muted-foreground flex items-center gap-1 z-20 pointer-events-none">
+            <Move className="size-3" />
+            <span className="hidden sm:inline">Geser untuk pan · scroll untuk zoom · klik rak untuk detail</span>
+            <span className="sm:hidden">Geser · klik rak</span>
+          </div>
         )}
       </div>
 
       {/* Footer legend */}
-      <div className="p-2 border-t bg-background flex items-center gap-3 text-[11px] text-muted-foreground flex-wrap">
+      <div className="p-2 border-t bg-background flex items-center gap-2 sm:gap-3 text-[10px] sm:text-[11px] text-muted-foreground flex-wrap">
         <span className="flex items-center gap-1">
           <span className="inline-block w-3 h-3 rounded bg-[#a8d5e5] border border-slate-400" />
-          Rak tersedia
+          Rak
         </span>
         <span className="flex items-center gap-1">
           <span className="inline-block w-3 h-3 rounded bg-[#fde68a] border border-amber-500" />
@@ -372,14 +565,10 @@ export default function DenahView({ lokasi, initialBuilding, onRackClick }: Prop
           <span className="inline-block w-3 h-3 rounded bg-[#dc2626] border border-red-900" />
           Terpilih
         </span>
-        <span className="flex items-center gap-1">
-          <span className="inline-block w-3 h-3 rounded bg-[#f97316] border border-orange-700" />
-          Hover rak terpilih
-        </span>
         {parsed && parsed.building !== activeBuilding && (
           <span className="text-amber-700 ml-auto flex items-center gap-1">
             <MapPin className="size-3" />
-            Lokasi terpilih ada di gedung {parsed.building} — pilih gedung tersebut
+            Lokasi di gedung {parsed.building}
           </span>
         )}
       </div>
