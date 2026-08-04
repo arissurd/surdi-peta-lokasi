@@ -136,7 +136,7 @@ function StatsPanel() {
   }
 
   const cards = [
-    { label: "Total Arsip", value: stats.totalLocations, sub: "seluruh lokasi terdaftar", color: "text-emerald-600", icon: Database },
+    { label: "Total Arsip", value: stats.totalLocations, sub: "seluruh lokasi terdaftar", color: "text-[#BA5D5D]", icon: Database },
     { label: "Total Pengguna", value: stats.totalUsers, sub: `${stats.adminUsers} admin · ${stats.regularUsers} user`, color: "text-sky-600", icon: Users },
     { label: "Admin Aktif", value: stats.adminUsers, sub: "akun dengan hak penuh", color: "text-rose-600", icon: ShieldCheck },
   ];
@@ -198,7 +198,7 @@ function BreakdownCard({ title, items }: { title: string; items: { name: string;
             </div>
             <div className="h-1.5 rounded-full bg-muted overflow-hidden">
               <div
-                className="h-full bg-emerald-500"
+                className="h-full bg-[#BA5D5D]"
                 style={{ width: `${(it.count / max) * 100}%` }}
               />
             </div>
@@ -258,7 +258,7 @@ function UsersPanel({ onChanged }: { onChanged?: () => void }) {
             setEditing(null);
             setShowForm(true);
           }}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white"
+          className="bg-[#BA5D5D] hover:bg-[#A04D4D] text-white"
         >
           <PlusCircle className="size-4" /> Tambah
         </Button>
@@ -297,7 +297,7 @@ function UsersPanel({ onChanged }: { onChanged?: () => void }) {
                     <TableCell>
                       <Badge
                         variant={u.role === "ADMIN" ? "default" : "secondary"}
-                        className={u.role === "ADMIN" ? "bg-rose-600 hover:bg-rose-600 text-white" : ""}
+                        className={u.role === "ADMIN" ? "bg-[#232837] hover:bg-[#2F3548] text-white" : ""}
                       >
                         {u.role}
                       </Badge>
@@ -496,7 +496,7 @@ function UserFormDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Batal
             </Button>
-            <Button type="submit" disabled={saving} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+            <Button type="submit" disabled={saving} className="bg-[#BA5D5D] hover:bg-[#A04D4D] text-white">
               {saving ? <Loader2 className="size-4 animate-spin" /> : null}
               {editing ? "Simpan" : "Buat"}
             </Button>
@@ -686,7 +686,7 @@ function LocationsPanel({ onChanged }: { onChanged?: () => void }) {
             </Button>
             <Button
               onClick={() => setCreating(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="bg-[#BA5D5D] hover:bg-[#A04D4D] text-white"
             >
               <PlusCircle className="size-4" /> Tambah
             </Button>
@@ -912,7 +912,7 @@ function ImportArsipDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Upload className="size-5 text-emerald-600" />
+            <Upload className="size-5 text-[#BA5D5D]" />
             Import Arsip dari Excel
           </DialogTitle>
           <DialogDescription>
@@ -937,7 +937,7 @@ function ImportArsipDialog({
                 onClick={() => setMode("append")}
                 className={`rounded-lg border p-3 text-left transition-colors ${
                   mode === "append"
-                    ? "border-emerald-500 bg-emerald-50/60"
+                    ? "border-[#BA5D5D] bg-[#BA5D5D]/5"
                     : "border-border hover:bg-muted/40"
                 }`}
               >
@@ -1003,7 +1003,7 @@ function ImportArsipDialog({
             <Button
               type="submit"
               disabled={importing || !file}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="bg-[#BA5D5D] hover:bg-[#A04D4D] text-white"
             >
               {importing ? (
                 <>
@@ -1089,7 +1089,7 @@ function DenahPanel() {
         </div>
         <Button
           onClick={() => setUploadOpen(true)}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white"
+          className="bg-[#BA5D5D] hover:bg-[#A04D4D] text-white"
         >
           <Upload className="size-4" /> Upload Denah
         </Button>
@@ -1103,17 +1103,17 @@ function DenahPanel() {
                 key={b}
                 className={`rounded-lg border p-3 flex items-center justify-between transition-colors ${
                   has
-                    ? "border-emerald-200 bg-emerald-50/50"
-                    : "border-amber-200 bg-amber-50/40"
+                    ? "border-[#BA5D5D]/20 bg-[#BA5D5D]/5"
+                    : "border-[#CFD16C]/30 bg-[#CFD16C]/5"
                 }`}
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <FileImage
-                    className={`size-5 shrink-0 ${has ? "text-emerald-600" : "text-amber-500"}`}
+                    className={`size-5 shrink-0 ${has ? "text-[#BA5D5D]" : "text-[#CFD16C]"}`}
                   />
                   <div className="min-w-0">
                     <div className="font-semibold">Gedung {b}</div>
-                    <div className={`text-xs ${has ? "text-emerald-700" : "text-amber-700"}`}>
+                    <div className={`text-xs ${has ? "text-[#BA5D5D]" : "text-[#8B8730]"}`}>
                       {has ? "denah tersedia" : "belum ada denah"}
                     </div>
                   </div>
@@ -1130,7 +1130,7 @@ function DenahPanel() {
                     <Trash2 className="size-4" />
                   </Button>
                 ) : (
-                  <Badge variant="outline" className="bg-amber-100 text-amber-800 hover:bg-amber-100 border-amber-200 shrink-0">
+                  <Badge variant="outline" className="bg-[#CFD16C]/15 text-[#8B8730] hover:bg-[#CFD16C]/15 border-[#CFD16C]/40 shrink-0">
                     ✕ kosong
                   </Badge>
                 )}

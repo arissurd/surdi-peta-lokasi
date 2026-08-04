@@ -260,22 +260,22 @@ export default function DenahView({ lokasi, initialBuilding, onRackClick, highli
           transition: fill 0.15s ease, stroke 0.15s ease, filter 0.15s ease;
         }
         .denah-rack:hover {
-          fill: #fde68a !important;
-          stroke: #d97706 !important;
+          fill: #CFD16C !important;
+          stroke: #8B8730 !important;
           stroke-width: 2 !important;
           filter: none !important;
         }
         .denah-rack.denah-highlight {
-          fill: #dc2626 !important;
-          stroke: #7f1d1d !important;
+          fill: #BA5D5D !important;
+          stroke: #7A3D3D !important;
           stroke-width: 3 !important;
-          filter: drop-shadow(0 0 8px rgba(220, 38, 38, 0.6));
+          filter: drop-shadow(0 0 8px rgba(186, 93, 93, 0.6));
         }
         .denah-rack.denah-highlight:hover {
-          fill: #f97316 !important;
-          stroke: #9a3412 !important;
+          fill: #A04D4D !important;
+          stroke: #5F2D2D !important;
           stroke-width: 3 !important;
-          filter: drop-shadow(0 0 10px rgba(249, 115, 22, 0.7));
+          filter: drop-shadow(0 0 10px rgba(160, 77, 77, 0.7));
         }
       `;
       document.head.appendChild(styleEl);
@@ -440,7 +440,7 @@ export default function DenahView({ lokasi, initialBuilding, onRackClick, highli
       {/* Building selector + info bar */}
       <div className="flex items-center justify-between gap-2 p-2 sm:p-3 border-b bg-muted/30 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
-          <FileImage className="size-4 text-emerald-600 shrink-0" />
+          <FileImage className="size-4 text-[#BA5D5D] shrink-0" />
           <span className="text-sm font-medium hidden sm:inline">Denah Rak</span>
           {parsed && (
             <Badge variant="outline" className="font-mono text-xs">
@@ -476,7 +476,7 @@ export default function DenahView({ lokasi, initialBuilding, onRackClick, highli
         )}
         {error && !loading && (
           <div className="absolute inset-0 flex items-center justify-center p-6 text-center">
-            <div className="flex flex-col items-center gap-2 text-amber-700">
+            <div className="flex flex-col items-center gap-2 text-[#8B8730]">
               <AlertCircle className="size-8" />
               <p className="text-sm">{error}</p>
               <p className="text-xs text-muted-foreground">
@@ -552,21 +552,21 @@ export default function DenahView({ lokasi, initialBuilding, onRackClick, highli
       </div>
 
       {/* Footer legend */}
-      <div className="p-2 border-t bg-background flex items-center gap-2 sm:gap-3 text-[10px] sm:text-[11px] text-muted-foreground flex-wrap">
+      <div className="p-2 border-t border-[#E8E8E8] bg-white flex items-center gap-2 sm:gap-3 text-[10px] sm:text-[11px] text-[#8B92A5] flex-wrap">
         <span className="flex items-center gap-1">
-          <span className="inline-block w-3 h-3 rounded bg-[#a8d5e5] border border-slate-400" />
+          <span className="inline-block w-3 h-3 bg-[#a8d5e5] border border-slate-400" />
           Rak
         </span>
         <span className="flex items-center gap-1">
-          <span className="inline-block w-3 h-3 rounded bg-[#fde68a] border border-amber-500" />
+          <span className="inline-block w-3 h-3 bg-[#CFD16C] border border-[#8B8730]" />
           Hover
         </span>
         <span className="flex items-center gap-1">
-          <span className="inline-block w-3 h-3 rounded bg-[#dc2626] border border-red-900" />
+          <span className="inline-block w-3 h-3 bg-[#BA5D5D] border border-[#7A3D3D]" />
           Terpilih
         </span>
         {parsed && parsed.building !== activeBuilding && (
-          <span className="text-amber-700 ml-auto flex items-center gap-1">
+          <span className="text-[#8B8730] ml-auto flex items-center gap-1">
             <MapPin className="size-3" />
             Lokasi di gedung {parsed.building}
           </span>

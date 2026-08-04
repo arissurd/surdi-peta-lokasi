@@ -116,7 +116,7 @@ export default function UploadDenahDialog({ open, onOpenChange, onUploaded }: Pr
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Upload className="size-5 text-emerald-600" />
+            <Upload className="size-5 text-[#BA5D5D]" />
             Upload Denah Gedung
           </DialogTitle>
           <DialogDescription>
@@ -129,12 +129,12 @@ export default function UploadDenahDialog({ open, onOpenChange, onUploaded }: Pr
         {/* Status overview */}
         <div className="rounded-lg border bg-muted/30 p-3 space-y-2 text-xs">
           <div className="flex items-start gap-2">
-            <FileImage className="size-4 text-emerald-600 mt-0.5" />
+            <FileImage className="size-4 text-[#BA5D5D] mt-0.5" />
             <div className="flex-1">
               <div className="font-medium">Sudah tersedia ({liveBuildings.length})</div>
               <div className="mt-1 flex flex-wrap gap-1">
                 {existingBuildings.map((b) => (
-                  <Badge key={b} variant="outline" className="bg-emerald-50 text-emerald-800 border-emerald-200 text-[10px]">
+                  <Badge key={b} variant="outline" className="bg-[#BA5D5D]/10 text-[#BA5D5D] border-[#BA5D5D]/30 text-[10px]">
                     {b}
                   </Badge>
                 ))}
@@ -174,7 +174,7 @@ export default function UploadDenahDialog({ open, onOpenChange, onUploaded }: Pr
                 ))}
                 {existingBuildings.map((b) => (
                   <SelectItem key={b} value={b}>
-                    Gedung {b} <span className="text-emerald-600 text-xs ml-2">(ganti)</span>
+                    Gedung {b} <span className="text-[#BA5D5D] text-xs ml-2">(ganti)</span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -233,7 +233,7 @@ export default function UploadDenahDialog({ open, onOpenChange, onUploaded }: Pr
             <Button
               type="submit"
               disabled={saving || !building || !file}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="bg-[#BA5D5D] hover:bg-[#A04D4D] text-white"
             >
               {saving ? (
                 <>

@@ -161,7 +161,7 @@ export default function ExplorePanel({ onChanged }: Props) {
         <Card className="shrink-0">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
-              <Search className="size-4 text-emerald-600" /> Pencarian Arsip
+              <Search className="size-4 text-[#BA5D5D]" /> Pencarian Arsip
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -242,7 +242,7 @@ export default function ExplorePanel({ onChanged }: Props) {
               </div>
             )}
             <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1 flex-wrap">
-              <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
+              <Badge variant="secondary" className="bg-[#BA5D5D]/10 text-[#BA5D5D] hover:bg-[#BA5D5D]/10">
                 <FileImage className="size-3 mr-1" /> {liveBuildings.length}/{ALL_BUILDINGS.length} gedung berdenah
               </Badge>
               <Button
@@ -290,8 +290,8 @@ export default function ExplorePanel({ onChanged }: Props) {
                         onClick={() => handleListClick(r)}
                         className={`w-full text-left rounded-lg border p-3 transition-all ${
                           isSelected
-                            ? "border-emerald-500 bg-emerald-50/60 shadow-sm"
-                            : "border-border hover:border-emerald-300 hover:bg-muted/40 hover:shadow-sm"
+                            ? "border-[#BA5D5D] bg-[#BA5D5D]/5 shadow-sm"
+                            : "border-border hover:border-[#BA5D5D]/40 hover:bg-muted/40 hover:shadow-sm"
                         }`}
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -300,7 +300,7 @@ export default function ExplorePanel({ onChanged }: Props) {
                           </div>
                           <div className="flex flex-wrap gap-1 justify-end shrink-0">
                             {hasSvg ? (
-                              <Badge variant="outline" className="text-emerald-700 border-emerald-300 text-[10px]">
+                              <Badge variant="outline" className="text-[#BA5D5D] border-[#BA5D5D]/40 text-[10px]">
                                 <FileImage className="size-2.5 mr-0.5" /> denah
                               </Badge>
                             ) : parsed ? (
@@ -337,7 +337,7 @@ export default function ExplorePanel({ onChanged }: Props) {
         <Card className="overflow-hidden">
           <div className="flex items-center justify-between gap-2 p-3 border-b bg-muted/30">
             <div className="flex items-center gap-2">
-              <FileImage className="size-4 text-emerald-600" />
+              <FileImage className="size-4 text-[#BA5D5D]" />
               <span className="text-sm font-medium">Denah Rak</span>
               {selectedParsed && (
                 <Badge variant="outline" className="font-mono text-xs">
@@ -368,7 +368,7 @@ export default function ExplorePanel({ onChanged }: Props) {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <CardTitle className="text-base flex items-center gap-2 flex-wrap">
-                    <Database className="size-4 text-emerald-600 shrink-0" />
+                    <Database className="size-4 text-[#BA5D5D] shrink-0" />
                     <span className="font-mono">{selectedDetail.lokasi || "(tanpa kode lokasi)"}</span>
                   </CardTitle>
                   <p className="mt-1 text-sm text-muted-foreground line-clamp-1">
@@ -410,7 +410,7 @@ export default function ExplorePanel({ onChanged }: Props) {
         <DialogContent className="max-w-2xl max-h-[80vh]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <FileImage className="size-5 text-emerald-600" />
+              <FileImage className="size-5 text-[#BA5D5D]" />
               Arsip di Rak <span className="font-mono">{rackPopupCode}</span>
             </DialogTitle>
             <DialogDescription>
@@ -435,7 +435,7 @@ export default function ExplorePanel({ onChanged }: Props) {
                         setSelectedId(r.id);
                         setRackPopupCode(null);
                       }}
-                      className="w-full text-left rounded-lg border p-3 hover:border-emerald-300 hover:bg-muted/40 transition-colors"
+                      className="w-full text-left rounded-lg border p-3 hover:border-[#BA5D5D]/40 hover:bg-muted/40 transition-colors"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-sm font-medium line-clamp-1">

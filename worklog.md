@@ -169,3 +169,74 @@ Stage Summary:
 - Root cause ditemukan dan diperbaiki: DenahSvgHost (imperative innerHTML) + prop highlightRackCode yang sebelumnya hilang.
 - Setelah klik rak: class denah-rack (239 rack) dan denah-highlight tetap ada — hover dan highlight tidak hilang.
 - Hover rak terpilih → oranye; hover rak biasa → kuning; rak terpilih tetap merah saat tidak di-hover.
+
+---
+Task ID: tr-advanced-theme
+Agent: main (Super Z)
+Task: Buat tema seperti https://www.tr-advanced.co.jp/regular/ (minimalis Jepang, terracotta + navy + white).
+
+Work Log:
+- Inspeksi situs referensi via Agent Browser:
+  - Body text: rgb(95, 103, 124) = #5F677C (abu-abu kebiranan)
+  - Brand accent: rgba(186, 93, 93, 0.8) = #BA5D5D (terracotta/bata pink)
+  - Dark: rgba(35, 40, 55, 0.8) = #232837 (navy gelap)
+  - Light text: rgb(226, 226, 226), rgb(218, 225, 241)
+  - Yellow accent: rgb(207, 209, 108) = #CFD16C
+  - Font: "Noto Sans JP", "Yu Gothic UI"
+  - Border radius: 0px (sudut tajam, khas minimalis Jepang)
+  - Header: fixed, 72px, transparent bg
+- Update `globals.css`:
+  - Radius: 0px untuk sm/md/lg/xl (sudut tajam)
+  - Primary: terracotta #BA5D5D (oklch 0.55 0.11 30)
+  - Foreground: #5F677C (abu-abu kebiranan)
+  - Border: #E8E8E8 (very light gray)
+  - Accent: #CFD16C (kuning)
+  - Custom brand tokens: --brand-terracotta, --brand-navy, --brand-text, --brand-bg-soft, --brand-yellow, --brand-border
+  - Body font: "Noto Sans JP" dengan letter-spacing 0.01em dan font-feature-settings "palt"
+- Update `layout.tsx`: ganti Geist font dengan Noto_Sans_JP dari next/font/google (weight 400/500/700).
+- Update `LoginScreen`:
+  - Logo: border-2 border-[#BA5D5D] (kotak dengan border, bukan gradient circle)
+  - Background: #F7F6F4 (soft warm white)
+  - Card: border #E8E8E8, shadow-sm
+  - Labels: uppercase tracking-wider text-xs
+  - Input: border #E8E8E8, focus border #BA5D5D
+  - Button: bg #BA5D5D hover #A04D4D
+  - Demo account hint: border-l-2 border-[#CFD16C] bg-[#CFD16C]/10
+- Update `page.tsx`:
+  - Header logo: border-2 border-[#BA5D5D] (kotak, bukan gradient)
+  - Header bg: white/95 backdrop-blur
+  - Tabs: Eksplorasi active = bg #BA5D5D, Admin active = bg #232837 (navy)
+  - User dropdown: outline border #E8E8E8, badge ADMIN = border #BA5D5D text #BA5D5D
+  - Footer: border #E8E8E8, text #8B92A5
+  - Subtitle: uppercase tracking-wider text-[10px]
+- Update `ExplorePanel`:
+  - Semua emerald-600 → #BA5D5D
+  - emerald-100/800 → #BA5D5D/10
+  - emerald-500/50/60 → #BA5D5D/5
+  - emerald-300 → #BA5D5D/40
+- Update `AdminPanel`:
+  - Primary buttons: bg #BA5D5D hover #A04D4D
+  - ADMIN role badge: bg #232837 (navy, bukan rose)
+  - Stats card bar: bg #BA5D5D
+  - Denah grid card: border #BA5D5D/20 bg #BA5D5D/5 (ada) / border #CFD16C/30 bg #CFD16C/5 (kosong)
+  - Breakdown bar: bg #BA5D5D
+- Update `DenahView`:
+  - Rack hover: fill #CFD16C (kuning), stroke #8B8730
+  - Rack highlight: fill #BA5D5D (terracotta), stroke #7A3D3D, drop-shadow rgba(186,93,93,0.6)
+  - Rack highlight hover: fill #A04D4D (darker terracotta), stroke #5F2D2D
+  - Legend swatches: #CFD16C (hover), #BA5D5D (terpilih)
+  - Footer: border #E8E8E8, bg white, text #8B92A5
+- Update `UploadDenahDialog` + `LocationFormDialog`:
+  - Primary buttons: bg #BA5D5D hover #A04D4D
+  - Status badges: #BA5D5D/10 (ada) / #CFD16C/15 (kosong)
+- Verifikasi Agent Browser:
+  - Login page: SURDI logo (kotak border terracotta), label "EMAIL"/"PASSWORD" uppercase, card minimalis, button terracotta. ✓
+  - Explore: header dengan logo kotak, tabs Eksplorasi (terracotta) / Admin (navy), list dengan badge denah terracotta. ✓
+  - Denah: r190 highlighted dengan fill rgb(186, 93, 93) = #BA5D5D (terracotta). ✓
+  - Admin: stats cards, breakdown bars (terracotta), Denah grid (terracotta/kuning badges). ✓
+  - No errors.
+
+Stage Summary:
+- Tema berhasil diubah ke gaya minimalis Jepang seperti TR-Advanced: terracotta (#BA5D5D) sebagai accent utama, navy (#232837) sebagai dark, abu-abu kebiranan (#5F677C) sebagai text, putih soft (#F7F6F4) sebagai background.
+- Sudut tajam (radius 0px) di seluruh aplikasi, font Noto Sans JP, label uppercase tracking-wider.
+- Highlight denah sekarang terracotta (#BA5D5D), hover kuning (#CFD16C) — sesuai palette.

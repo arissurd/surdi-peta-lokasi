@@ -120,7 +120,7 @@ export default function LocationFormDialog({ open, onOpenChange, editing, onSave
             <Button
               type="submit"
               disabled={saving}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="bg-[#BA5D5D] hover:bg-[#A04D4D] text-white"
             >
               {saving ? <Loader2 className="size-4 animate-spin" /> : null}
               {editing ? "Simpan Perubahan" : "Buat Lokasi"}
