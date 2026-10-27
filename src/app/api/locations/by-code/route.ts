@@ -4,9 +4,7 @@ import { db } from "@/lib/db";
 /**
  * GET /api/locations/by-code?code=G2.R1
  * Returns all archive rows that share the same lokasi code.
- * SQLite is case-sensitive by default, so we query both upper and lower variants.
- *
- * Used by the denah rack-click popup.
+ * Uses MySQL case-insensitive LIKE (default collation is utf8mb4_unicode_ci).
  */
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -15,15 +13,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Parameter `code` wajib diisi" }, { status: 400 });
   }
 
-  const lowerCode = code.toLowerCase();
-
   const rows = await db.location.findMany({
     where: {
       OR: [
         { lokasi: { equals: code } },
-        { lokasi: { equals: lowerCode } },
         { lokasi: { startsWith: code + "." } },
-        { lokasi: { startsWith: lowerCode + "." } },
       ],
     },
     select: {

@@ -1,22 +1,21 @@
 // Prisma schema for SURDI Map Location application
-// Database: SQLite (file-based)
-// Models: User (with role), Location (mapped from tb_lokasi sheet)
+// Database: MySQL (MariaDB)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
-  name      String?
+  name      String?  @db.Text
   password  String
-  role      String   @default("USER") // "USER" | "ADMIN"
+  role      String   @default("USER")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -25,24 +24,22 @@ model User {
 
 model Location {
   id            String   @id @default(cuid())
-  provenance    String?
-  jalanMasuk    String?
-  periode       String?
-  lokasi        String?  // kode lokasi (e.g. E3.A1.1, G2.R1)
-  jenis         String?
-  media         String?
-  nomorJumlah   String?
-  bagian        String?
-  pAkuisisi     String?
-  pPengolahan   String?
-  pDigitalisasi String?
-  pRestorasi    String?
-  noInventaris  String?
+  provenance    String?  @db.Text
+  jalanMasuk    String?  @db.Text
+  periode       String?  @db.Text
+  lokasi        String?  @db.VarChar(255)
+  jenis         String?  @db.VarChar(255)
+  media         String?  @db.VarChar(255)
+  nomorJumlah   String?  @db.Text
+  bagian        String?  @db.VarChar(255)
+  pAkuisisi     String?  @db.VarChar(255)
+  pPengolahan   String?  @db.VarChar(255)
+  pDigitalisasi String?  @db.VarChar(255)
+  pRestorasi    String?  @db.VarChar(255)
+  noInventaris  String?  @db.Text
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   @@index([lokasi])
-  @@index([provenance])
-  @@index([jalanMasuk])
   @@index([jenis])
 }
