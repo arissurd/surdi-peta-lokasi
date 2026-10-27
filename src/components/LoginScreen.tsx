@@ -14,8 +14,8 @@ type Props = {
 };
 
 export default function LoginScreen({ onLoggedIn }: Props) {
-  const [email, setEmail] = useState("admin@surdi.go.id");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -73,7 +73,7 @@ export default function LoginScreen({ onLoggedIn }: Props) {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="anda@surdi.go.id"
+                  placeholder="email"
                   autoComplete="email"
                   required
                   autoFocus
