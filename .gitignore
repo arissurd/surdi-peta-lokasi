@@ -60,4 +60,4 @@ server.log
 /upload/
 
 # Scripts data
-/scripts/lokasi.json
+/scripts/lokasi.json*.deb
