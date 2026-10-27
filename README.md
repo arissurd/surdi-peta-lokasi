@@ -28,7 +28,6 @@ Sistem Penelusuran Digital Arsip dengan denah rak interaktif, pencarian multi-kr
 
 | Role  | Email                  | Password   |
 |-------|------------------------|------------|
-| Admin | `admin@surdi.go.id`   | `admin123` |
 | User  | `user@surdi.go.id`    | `user123`  |
 
 ## Setup
